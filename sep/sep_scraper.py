@@ -1,26 +1,13 @@
-from typing import TypedDict
 import requests
 from bs4 import BeautifulSoup
+
 import json
+import os
 import datetime
 import string
-import os
+from shared_types import Article, Section
+
 from pylatexenc.latex2text import LatexNodes2Text
-
-class Section(TypedDict):
-  header_tree: list[str]
-  text: str
-
-class Article(TypedDict):
-  id: str
-  title: str
-  authors: str | list[str]
-  editors: str | list[str] | None
-  original_date: str
-  revision_date: str | None
-  link: str
-  content: list[Section]
-  bibliography: list[str]
 
 def fetch_url(link: str) -> BeautifulSoup:
   page = requests.get(link)
@@ -88,8 +75,8 @@ def get_content_by_section(all_tags) -> list[Section]:
 
   '''
     latex conversion to natural language: https://pylatexenc.readthedocs.io/en/latest/latex2text/
-      certain logic operators aren't handled like logical and/or/not (\land, etc.) - satisfactory for now
-      because some people use the synonymous \wedge, etc.
+      certain logic operators aren't handled like logical and/or/not (\\land, etc.) - satisfactory for now
+      because some people use the synonymous \\wedge, etc.
       
       might want to find better conversion in the future
       
@@ -176,7 +163,7 @@ def scrape_article_and_store(link: str):
   
   print("writing " + article['title'])
   
-  filepath = os.path.join(os.getcwd(), 'scraping', 'sep', 'articles', article['id'])
+  filepath = os.path.join(os.getcwd(), 'sep', 'articles', article['id'])
   
   write_dict_to_json(article, filepath)
     
@@ -195,15 +182,6 @@ def main():
       pass
     
     print(f'{i}/1852')
-
-  # print(extract_article_data('https://plato.stanford.edu/entries/madhyamaka/')['bibliography'][15])
-  # print(extract_article_data('https://plato.stanford.edu/entries/frege/')['content'][8])
-  # scrape_article_and_store('https://plato.stanford.edu/entries/logic-fuzzy/')
-  
-  # soup = BeautifulSoup(LatexNodes2Text().latex_to_text('<script type="math/tex; mode=display" id="MathJax-Element-183"> (\\forall x)(\exists z)(\exists y/x)(x=y), </script>'), 'html.parser')
-  # value = soup.find('script').get_text()
-  # print(value)
-  
   
 if __name__ == '__main__':
   main()

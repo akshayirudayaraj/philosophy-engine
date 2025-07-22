@@ -1,2 +1,3 @@
-/scraping/sep/articles/
+/sep/articles/
+/sep/__pycache__
 # might just take out all 'article' folders down the line at some point
