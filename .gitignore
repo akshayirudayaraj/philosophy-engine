@@ -1,3 +1,4 @@
 /sep/articles/
 /sep/__pycache__
+.env
 # might just take out all 'article' folders down the line at some point
