@@ -1,5 +1,14 @@
+'''
+  Currently doesn't work after some code refactoring
+  
+  TODO:
+    - Modify Article object construction to use the Metadata instance variable
+    - All JSON handling should come from the JsonHelper class
+'''
+
+from typing import cast
 import requests
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup, Tag
 
 import json
 import os
@@ -15,10 +24,13 @@ def fetch_url(link: str) -> BeautifulSoup:
   return soup
 
 def get_dates(date_info: str, date_format: str) -> tuple[str, str | None]:
-    original_date, revision_date = (date_info.split(';') + [None])[:2] # weird python magic -- if only one value unpacked, the other will be None
+    date_parts = date_info.split(';')
+    
+    original_date = date_parts[0]
     original_date = datetime.datetime.strptime(original_date.removeprefix("First published "), date_format)
     original_date = original_date.isoformat()
     
+    revision_date = date_parts[1] if len(date_parts) > 1 else None
     if revision_date:
       revision_date = datetime.datetime.strptime(revision_date.removeprefix(" substantive revision "), date_format)
       revision_date = revision_date.isoformat()
@@ -51,7 +63,7 @@ def get_content_by_section(all_tags) -> list[Section]:
       
       # matches entry # in list to the header #
         # empty h2 entry in case of h1->h3 (people make mistakes)
-      if prev is None:
+      if prev_header_value is None:
         pass
       elif curr_header_value <= prev_header_value:
         while curr_header_value <= prev_header_value:
@@ -90,7 +102,10 @@ class SkipIteration(Exception):
 
 def get_author_information(article_id: str) -> tuple[list[str], list[str]]:
   soup = fetch_url(f'https://plato.stanford.edu/cgi-bin/encyclopedia/archinfo.cgi?entry={article_id}')
-  citation = soup.find('pre').get_text()
+  
+  citation_tag = soup.find('pre')
+  assert citation_tag is not None, "The citation link being looked at is seriously messed up"
+  citation = citation_tag.get_text()
   
   segments = citation.removeprefix(f'@InCollection{{sep-{article_id},').split('},')
   
@@ -104,53 +119,60 @@ def get_author_information(article_id: str) -> tuple[list[str], list[str]]:
   
   return authors_full_name, editors_full_name
 
+def find_required(soup, **kwargs) -> Tag:
+  tag = soup.find(**kwargs)
+  if not isinstance(tag, Tag):
+    raise ValueError("Unable to find tag! Something's wrong with the document you're searching.")
+  else:
+    return tag
+
 def extract_article_data(link: str) -> Article:
   soup = fetch_url(link)
-  
-  title = soup.find("h1").get_text()
+  soup.find
+  title = find_required(soup, name="h1").get_text()
   if (title == 'Document Retired'):
     raise SkipIteration()
   
   date_format = '%a %b %d, %Y'
-  date_info = soup.find(id="pubinfo").get_text()
+  date_info = find_required(soup, id="pubinfo").get_text()
   original_date, revision_date = get_dates(date_info, date_format)
   
-  preamble = soup.find(id="preamble").get_text()
+  preamble = find_required(soup, id="preamble").get_text()
   
-  main_content = soup.find(id="main-text")
-  
-  # print(main_content.prettify())
-  
+  main_content = find_required(soup, id="main-text")
   all_tags = main_content.descendants # includes nested
-  # TODO: clean up some duplicate phrases
+  
+  # TODO: clean up some duplicate phrases in all_tags
   
   section_contents = get_content_by_section(all_tags)
+  
+  # TODO: move title, preamble/summary to metadata
   section_contents.append({
-    "header": title,
+    "header": list(title),
     "text": preamble,
   }) # this technically should come first, but order shouldn't matter here and this allows for cleaner code
   
-  biblio_list = [entry.get_text().replace("\n", " ") for entry in soup.find(id="bibliography").find_all("li")]
+  biblio_list = [entry.get_text().replace("\n", " ") for entry in find_required(soup, id="bibliography").find_all("li")]
   
   authors, editors = get_author_information(link.split('/')[-2])
   
-  return Article(
-    id="sep-" + title.lower().replace(' ', '-').replace('/', '-'),
-    title=title,
-    authors=authors,
-    editors=editors,
-    original_date=original_date,
-    revision_date=revision_date,
-    link=link,
-    content=section_contents,
-    bibliography=biblio_list,
-  )
+  return {
+    'id': "sep-" + title.lower().replace(' ', '-').replace('/', '-'),
+    'title': title,
+    'authors': authors,
+    'editors': editors,
+    'original_date': original_date,
+    'revision_date': revision_date,
+    'link': link,
+    'content': section_contents,
+    'bibliography': biblio_list,
+  }
   
 def get_all_post_links(soup: BeautifulSoup) -> list[str]:
-  article_entries = soup.find(id="content").find_all("a")
-  links = [entry['href'] for entry in article_entries]
+  article_entries = find_required(soup, id="content").find_all("a")
+  links = [entry['href'] for entry in article_entries] # type: ignore
   # print(*links, sep='\n')
-  return links
+  return links # type: ignore
 
 def write_dict_to_json(dict: dict, filepath: str) -> None:
   with open(filepath + '.json', 'w') as file:
@@ -165,7 +187,7 @@ def scrape_article_and_store(link: str):
   
   filepath = os.path.join(os.getcwd(), 'sep', 'articles', article['id'])
   
-  write_dict_to_json(article, filepath)
+  write_dict_to_json(cast(dict, article), filepath)
     
   print("finished writing " + article['title'] + "!\n")
 

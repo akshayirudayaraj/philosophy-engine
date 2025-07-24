@@ -1,4 +1,7 @@
 /sep/articles/
+/sep/chunked_articles/
+/sep/embeddings/
 /sep/__pycache__
 .env
+**.DS_Store
 # might just take out all 'article' folders down the line at some point
