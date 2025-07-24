@@ -2,6 +2,7 @@ from typing import cast
 from google import genai
 from google.genai import types, Client
 
+import time
 import numpy as np # for embedding normalization
 import os
 from shared_types import Chunk, Embedding, VectorMetadata
@@ -10,6 +11,15 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from dotenv import load_dotenv
 load_dotenv('./.env')
+
+import logging
+
+logging.basicConfig(
+    filename='embed_errors.log',
+    filemode='a',
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    level=logging.INFO
+)
 
 CLOUD_PROJECT_ID = os.getenv('GOOGLE_CLOUD_PROJECT')
 CLOUD_REGION = os.getenv('GOOGLE_CLOUD_LOCATION')
@@ -68,6 +78,30 @@ def embed(client: Client, chunk: Chunk) -> Embedding:
     'embeddings': normalized_embeddings,
     'metadata': vector_metadata,
   }
+  
+def get_batches(base_read_filepath: str) -> list[list[Chunk]]:
+  current_tokens = 0
+  batches: list[list[Chunk]] = []
+  current_batch: list[Chunk] = []
+  
+  for file in os.listdir(base_read_filepath):
+    read_filepath = os.path.join(base_read_filepath, file)
+    chunk = cast(Chunk, JsonHelper.load_file(read_filepath))
+    
+    chunk_tokens = chunk['num_tokens']
+    
+    if (current_tokens + chunk_tokens) > MAX_TOKENS_PER_MINUTE:
+      batches.append(current_batch)
+      current_tokens = chunk_tokens
+      current_batch = [chunk]
+    else:
+      current_batch.append(chunk)
+      current_tokens += chunk_tokens
+  
+  if current_batch:
+    batches.append(current_batch)
+  
+  return batches
 
 def main():
   client = genai.Client(
@@ -87,31 +121,37 @@ def main():
   base_filepath = os.path.join(os.getcwd(), 'sep')
   base_read_filepath = os.path.join(base_filepath, 'chunked_articles')
   base_write_filepath = os.path.join(base_filepath, 'embeddings')
-
-  with ThreadPoolExecutor(max_workers=5) as executor:
-    futures = []
-    
-    for file in os.listdir(base_read_filepath):
-      futures.append(executor.submit(
-        read_embed_write,
-        base_read_filepath=base_read_filepath,
-        base_write_filepath=base_write_filepath,
-        file=file,
-        client=client,
-      ))
+  
+  batches = get_batches(base_read_filepath)
       
-    for future in as_completed(futures):
-      try:
-        result = future.result()
-        print(result)
-      except Exception as e:
-        # print(e)
-        print(future.exception())
-        break
+  for i0, batch in enumerate(batches, 1):
+    start = time.time()
+    num_chunks_in_batch = len(batch)
     
-def read_embed_write(base_read_filepath: str, base_write_filepath: str, file: str, client: Client):
-  read_filepath = os.path.join(base_read_filepath, file)
-  chunk = cast(Chunk, JsonHelper.load_file(read_filepath))
+    with ThreadPoolExecutor(max_workers=num_chunks_in_batch) as executor:
+      futures = [
+        (executor.submit(
+          embed_and_write,
+          chunk=chunk,
+          base_write_filepath=base_write_filepath,
+          client=client,
+        ))
+      for chunk in batch]
+        
+      for i1, future in enumerate(as_completed(futures), 1):
+        try:
+          future.result()
+          print(f'{i1}/{num_chunks_in_batch} chunks in batch {i0}/{len(batches)}')
+        except Exception:
+          logging.error(f'Exception in batch {i0}, chunk {i1}; {future.exception()}', exc_info=True)
+          # break
+    
+    time_passed = time.time() - start
+    time.sleep(max(0, 60 - time_passed))
+    
+def embed_and_write(chunk: Chunk, base_write_filepath: str, client: Client):
+  # read_filepath = os.path.join(base_read_filepath, file)
+  # chunk = cast(Chunk, JsonHelper.load_file(read_filepath))
   
   embedding = embed(client, chunk)
   
