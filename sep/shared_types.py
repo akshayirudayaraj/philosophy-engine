@@ -1,4 +1,4 @@
-from typing import TypedDict
+from typing import NotRequired, TypedDict
 
 class Section(TypedDict):
   header: list[str]
@@ -9,7 +9,7 @@ class Metadata(TypedDict):
   authors: list[str]
   editors: list[str]
   original_date: str
-  revised_date: str | None
+  revised_date: NotRequired[str | None]
   link: str
   bibliography: list[str]
   
@@ -37,5 +37,5 @@ class Chunk(TypedDict):
 # makes it easy for Pinecone ingestion
 class Embedding(TypedDict):
   id: str
-  embeddings: list[float]
+  values: list[float]
   metadata: VectorMetadata

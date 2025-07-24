@@ -9,10 +9,10 @@ from shared_types import Chunk, Embedding, VectorMetadata
 from json_helper import JsonHelper
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
+import logging
+
 from dotenv import load_dotenv
 load_dotenv('./.env')
-
-import logging
 
 logging.basicConfig(
     filename='embed_errors.log',
@@ -75,7 +75,7 @@ def embed(client: Client, chunk: Chunk) -> Embedding:
     
   return {
     'id': chunk['id'],
-    'embeddings': normalized_embeddings,
+    'values': normalized_embeddings,
     'metadata': vector_metadata,
   }
   
