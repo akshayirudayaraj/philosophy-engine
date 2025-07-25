@@ -8,6 +8,7 @@ import os
 import numpy as np
 from json_helper import JsonHelper
 import requests
+import anthropic
 
 load_dotenv('./.env')
 
@@ -20,6 +21,11 @@ EMBEDDING_MODEL_ID = 'gemini-embedding-001'
 DENSE_OUTPUT_DIMENSIONALITY = 1536
 TASK_TYPE = 'RETRIEVAL_QUERY'
 
+ANTHROPIC_MODEL_ID = 'claude-3-5-haiku-latest' # 'claude-sonnet-4-latest'
+MAX_WORD_RESPONSE_APPROX = 5000
+WORD_TO_TOKEN_APPROX = 1.3
+MAX_RESPONSE_TOKENS = int(MAX_WORD_RESPONSE_APPROX * WORD_TO_TOKEN_APPROX)
+
 # LOTS of duplicate code from embedding file here
   # TODO: need to clean up a lot after i get MVP up
   
@@ -30,8 +36,8 @@ def normalize(embeddings: list[float]) -> list[float]:
   normalized_vectors_list = normalized_vectors.tolist()
   return cast(list[float], normalized_vectors_list)
 
-def embed_query(client: Client, query: str) -> list[float]:  
-  embedding = client.models.embed_content(
+def embed_query(embedding_client: Client, query: str) -> list[float]:  
+  embedding = embedding_client.models.embed_content(
     model=EMBEDDING_MODEL_ID,
     contents=query,
     config=types.EmbedContentConfig(
@@ -79,7 +85,7 @@ def fetch_url(link: str) -> BeautifulSoup:
   soup = BeautifulSoup(page.content, "lxml")
   return soup
 
-def get_context(match: dict) -> tuple[str, str]:
+def get_context(match: dict) -> dict:
   id = match['id']
   link = match['metadata']['link']
   
@@ -95,17 +101,27 @@ def get_context(match: dict) -> tuple[str, str]:
   
   content = find_header_text(article_text_and_headers, deepest_header)
   
-  return title, content
+  return {
+    'title': title,
+    **content,
+  }
   
-def find_header_text(article_content: list[dict], header: str) -> str:
+def find_header_text(article_content: list[dict], header: str) -> dict[str, str]:
   print(header)
   for section in article_content:
     if (section['header'][-1].lower() == header):
-      return section['text']
+      return {
+        'header_tree': ", ".join(section['header']),
+        'text': section['text'],
+      }
   
   # if can't find header, default is to get the context underneath the title
     # in my case, that's the last entry in the content list
-  return article_content[-1]['text']
+  under_title_context = article_content[-1]
+  return {
+    'header_tree': ", ".join(under_title_context['header']),
+    'text': under_title_context['text'],
+  }
   
 def get_json_content(json_title: str) -> list[dict]:
   search_directory = os.path.join(os.getcwd(), 'sep', 'articles')
@@ -123,13 +139,53 @@ def consume_title(title: str, title_and_deepest_header: list[str]) -> str:
   header = title_header_combined.removeprefix(title + ' ')
   return header
   
-def construct_prompt(user_query: str, contextual_info: list[str]) -> str:
-  return "hey chat"
+def construct_prompt(user_query: str, contextual_info: list[dict]) -> dict[str, str]:
+  system_prompt = """
+  You are a scholar of philosophy and ethics. Your mission is to help young philosopers and ethicists
+  think about very hard, nuanced questions. Because you are wise, you offer many potential answers to questions
+  and spend time in deliberation before reaching a conclusion.
+  """
+  
+  user_prompt = f"""
+    <question>{user_query}</question>
+
+    <context>
+    {[
+      f"""
+      <article>
+      Title: {context['title']}
+      Headers: {context['header_tree']}
+      Text: {context['text']}
+      </article>
+      """
+      for context in contextual_info
+    ]}
+    </context>
+    
+    <task>
+    Write an in-depth, well-structured essay addressing the user's question. Use the context provided to structure
+    your argumentation and frequently cite the articles you use in your essay. Be even-keeled and academic, and question
+    your own logic as you draft the essay. Reason thoughtfully, thinking about all possible answers to the question.
+    
+    Provide an overview of how to approach the question and potential answers to it. Be nuanced, careful, and precise
+    as you write. Use the scholarly texts provided as much as possible to outline and justify your arguments.
+    </task>
+  """
+  
+  thinking_prompt = """
+  
+  """
+  
+  return {
+    'system': system_prompt,
+    'user': user_prompt,
+    'thinking': thinking_prompt
+  }
 
 def main():
   user_query = "Does free will exist?"
   
-  client = genai.Client(
+  embedding_client = genai.Client(
     vertexai=True,
     project=CLOUD_PROJECT_ID,
     location=CLOUD_REGION,
@@ -138,7 +194,7 @@ def main():
   pc = Pinecone(api_key=PINECONE_API_KEY)
   index = pc.Index(host=PINECONE_HOST_IDX)
   
-  query_vector = embed_query(client, user_query)
+  query_vector = embed_query(embedding_client, user_query)
   
   results = query_pinecone(query_vector, index)
   
@@ -149,17 +205,38 @@ def main():
   print(f'usage: {results['usage']}')
   
   contextual_info = [
-    (lambda m: (get_context(m), print(get_context(match)))[0])(match)
+    get_context(match)
     for match in results['matches']
-    if print(f'\n\n id: {match['id']}') or True
+    if (print(get_context(match))) or True
   ]
   
+  client = anthropic.Anthropic()
   
-  # prompt = construct_prompt(user_query, contextual_info)
+  prompt = construct_prompt(user_query, contextual_info)
   
-  # response = OpenAI.prompt(prompt)
+  response = client.messages.create(
+    model=ANTHROPIC_MODEL_ID,
+    max_tokens=MAX_RESPONSE_TOKENS,
+    # thinking={
+    #   'type': 'disabled',
+    #   'budget_tokens': THINKING_TOKEN_BUDGET,
+    # },
+    system=[
+      {
+        'type': 'text',
+        'text': prompt['system'],
+        'cache_control': {'type': 'ephemeral'} # min cacheable prompt length: 1024 tokens
+      }
+    ],
+    messages=[
+      {
+        'role': 'user',
+        'content': prompt['user']
+      }
+    ],
+  )
   
-  # print(response) # the moment of truth!
+  print(f'\n\n\nCLAUDE:\n{response.content[0]}')
   
 if __name__ == '__main__':
   main()
