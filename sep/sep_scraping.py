@@ -128,7 +128,7 @@ def find_required(soup, **kwargs) -> Tag:
 
 def extract_article_data(link: str) -> Article:
   soup = fetch_url(link)
-  soup.find
+
   title = find_required(soup, name="h1").get_text()
   if (title == 'Document Retired'):
     raise SkipIteration()
