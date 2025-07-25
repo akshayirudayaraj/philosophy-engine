@@ -15,6 +15,7 @@ class Metadata(TypedDict):
   
 class VectorMetadata(Metadata):
   num_tokens: int
+  
 class Article(TypedDict):
   id: str
   title: str
