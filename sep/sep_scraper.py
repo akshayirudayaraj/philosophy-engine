@@ -5,7 +5,7 @@ import string
 from typing import cast
 
 from bs4 import Tag
-from scraper import Scraper, SkipIteration
+from scraping.scraper import Scraper, SkipIteration
 from shared_types import Article, Section
 
 from pylatexenc.latex2text import LatexNodes2Text
@@ -176,7 +176,7 @@ def main():
   sep_chronological_entries = "https://plato.stanford.edu/published.html"
   sep_scraper = SepScraper(base_scraping_url=sep_chronological_entries)
   
-  article_directory = os.path.join('sep', 'articles')
+  article_directory = os.path.join('data', 'sep', 'articles')
   sep_scraper.scrape_and_store(base_write_directory=article_directory)
   # entries = get_all_post_links(main_soup)
   

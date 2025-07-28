@@ -3,7 +3,7 @@ from typing import NotRequired, TypedDict
 class Section(TypedDict):
   header: list[str]
   text: str
-  
+
 class Metadata(TypedDict):
   organization: str
   intro: str # either a preamble for SEP or abstract for papers
@@ -32,7 +32,7 @@ class Chunk(TypedDict):
   content: str # must be under 1.95k tokens
   # must be 0.05k - 0.98k tokens
   title: str
-  headers: list[str] 
+  headers: list[str]
   
 # makes it easy for Pinecone ingestion
 class Embedding(TypedDict):

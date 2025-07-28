@@ -5,7 +5,7 @@ import os
 import time
 from typing import cast
 
-from sep.json_helper import JsonHelper
+from json_helper import JsonHelper
 
 logging.basicConfig(
     filename='embed_errors.log',

@@ -85,8 +85,7 @@ def process_and_clean_vector(v: dict) -> Embedding:
 def main():  
   pc = Pinecone(PINECONE_API_KEY)
   index = pc.Index(host=PC_INDEX, 
-                   pool_threads=10
-                   )
+                   pool_threads=10)
     
   with index: # generators are so cool!
     vectors = process_vectors()

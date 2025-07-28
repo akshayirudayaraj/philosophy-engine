@@ -1,7 +1,6 @@
-/sep/articles/
-/sep/chunked_articles/
-/sep/embeddings/
-/sep/__pycache__
+# TODO: move all on-disk JSONs to small sql database (on postgresql)
+/data/
 .env
+__pycache__/
+**.log
 **.DS_Store
-# might just take out all 'article' folders down the line at some point

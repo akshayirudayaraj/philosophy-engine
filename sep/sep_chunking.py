@@ -1,13 +1,13 @@
 from collections.abc import Callable, Mapping
-from tokenizer import Tokenizer
+from embedding.tokenizer import Tokenizer
 
 from typing import Any, cast
 
 from json_helper import JsonHelper
-from chunker import Chunker
+from embedding.chunker import Chunker
 import os
 
-TOKENIZER_MODEL_PATH = os.path.join('sep', 'gemma_tokenizer.model')
+TOKENIZER_MODEL_PATH = os.path.join('embedding', 'tokenizing_models', 'gemma_tokenizer.model')
 
 TOKEN_LIMIT_PER_STRING = 2048
 
@@ -15,7 +15,7 @@ TOKEN_LIMIT_PER_STRING = 2048
 # could that meaningfully through things off? can probably just do a little check before embedding
 
 def main():
-  base_filepath = os.path.join(os.getcwd(), 'sep')
+  base_filepath = os.path.join(os.getcwd(), 'data', 'sep')
   base_read_filepath = os.path.join(base_filepath, 'articles')
   base_write_filepath = os.path.join(base_filepath, 'chunked_articles')
   

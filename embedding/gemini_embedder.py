@@ -1,4 +1,4 @@
-from embedder import DenseEmbedder
+from embedding.embedder import DenseEmbedder
 from shared_types import Chunk, Embedding, VectorMetadata
 import os
 from google import genai
