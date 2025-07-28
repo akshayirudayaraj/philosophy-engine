@@ -103,6 +103,7 @@ def get_context(match: dict) -> dict:
   
   return {
     'title': title,
+    'link': link,
     **content,
   }
   
@@ -143,12 +144,18 @@ def construct_prompt(user_query: str, contextual_info: list[dict]) -> dict[str, 
   system_prompt = """
   You are a scholar of philosophy and ethics. Your mission is to help young philosopers and ethicists
   think about very hard, nuanced questions. Because you are wise, you offer many potential answers to questions
-  and spend time in deliberation before reaching a conclusion.
+  and spend time in deliberation before reaching a conclusion. You never dismiss questions as merely "difficult" or "unclear" 
+  - instead, you dissect complexity to reveal underlying structures and possibilities for meaningful engagement.
+  
+  Your scholarly approach involves:
+  - Systematic examination of philosophical positions and their implications
+  - Integration of diverse theoretical frameworks and methodological approaches  
+  - Rigorous logical analysis that anticipates and addresses potential objections
+  - Synthesis of ideas that builds toward novel insights while remaining grounded in established scholarship
+  - Intellectual humility that acknowledges limitations while still advancing substantive conclusions
   """
   
   user_prompt = f"""
-    <question>{user_query}</question>
-
     <context>
     {[
       f"""
@@ -162,13 +169,73 @@ def construct_prompt(user_query: str, contextual_info: list[dict]) -> dict[str, 
     ]}
     </context>
     
+    <question>{user_query}</question>
+    
+    <analytical_framework>
+    Your response must demonstrate advanced philosophical reasoning through the following required components:
+
+    1. CONCEPTUAL ANALYSIS: Begin by unpacking key terms and concepts in the question. Identify ambiguities, define crucial terminology, and establish the philosophical stakes involved.
+
+    2. THEORETICAL POSITIONING: Map the question within relevant philosophical traditions. Identify which schools of thought, historical figures, or contemporary debates this question intersects with.
+
+    3. MULTI-PERSPECTIVE EXAMINATION: Present and analyze at least 3-4 distinct philosophical approaches to the question. For each perspective:
+      - Articulate its core claims and underlying assumptions
+      - Examine its strengths and explanatory power
+      - Identify potential weaknesses or limitations
+      - Consider how it might respond to objections
+
+    4. CONTEXTUAL INTEGRATION: Weave the provided scholarly sources throughout your analysis. Demonstrate how these texts support, complicate, or extend different philosophical positions. Use direct quotations and specific references to show deep engagement with the material.
+
+    5. CRITICAL SYNTHESIS: Develop your own reasoned position by:
+      - Identifying points of convergence and tension between different approaches
+      - Constructing novel arguments that build on existing scholarship
+      - Addressing the strongest counterarguments to your position
+      - Acknowledging areas where reasonable disagreement persists
+
+    6. PHILOSOPHICAL IMPLICATIONS: Explore what your analysis reveals about broader questions in philosophy and ethics. Consider how your conclusions might apply to related problems or inform practical decision-making.
+    </analytical_framework>
+
+    <structural_requirements>
+    Organize your essay with clear intellectual progression:
+
+    - Introduction (300-400 words): Establish the philosophical significance of the question, preview your analytical approach, and outline your thesis
+    - Conceptual Foundation (500-600 words): Provide necessary definitional and contextual groundwork
+    - Comparative Analysis (1500-2000 words): Systematically examine multiple philosophical perspectives
+    - Critical Evaluation (100-200 words): Develop and defend your own position through rigorous argumentation
+    - Synthesis and Implications (100-200 words): Connect the analysis to broader philosophical questions and practical considerations
+
+    Total target length: 2,500-3,400 words
+    </structural_requirements>
+
+    <scholarly_standards>
+    - Use only complete sentences - this is an essay
+    - Maintain academic rigor while remaining accessible to intelligent readers
+    - Use precise philosophical terminology with appropriate explanation
+    - Integrate citations naturally into your argumentation (aim for 8-12 substantial references to the provided sources)
+    - Demonstrate awareness of philosophical nuance and complexity
+    - Show intellectual courage in defending positions while maintaining appropriate epistemic humility
+    - Avoid hedging language that undermines substantive analysis ("this is complicated," "there are no easy answers")
+    - Instead of claiming difficulty, demonstrate mastery by working through complexity systematically
+    - Every sentence must be meaningful and unique, furthering the discussion in some way
+    </scholarly_standards>
+
+    <reasoning_depth_requirements>
+    Your analysis must include:
+    - At least two layers of objection and response (consider objections to your main arguments, then responses to those objections)
+    - Examination of both theoretical and practical implications of different positions
+    - Consideration of how the question connects to at least 2-3 other major philosophical problems
+    - Discussion of methodological approaches (how different philosophical methods might yield different insights)
+    - Integration of historical development of ideas with contemporary debates
+    </reasoning_depth_requirements>
+    
     <task>
     Write an in-depth, well-structured essay addressing the user's question. Use the context provided to structure
     your argumentation and frequently cite the articles you use in your essay. Be even-keeled and academic, and question
     your own logic as you draft the essay. Reason thoughtfully, thinking about all possible answers to the question.
     
     Provide an overview of how to approach the question and potential answers to it. Be nuanced, careful, and precise
-    as you write. Use the scholarly texts provided as much as possible to outline and justify your arguments.
+    as you write. Use the scholarly texts provided as much as possible to outline and justify your arguments. Only use 
+    complete sentences - this is an academic paper.
     </task>
   """
   
@@ -183,7 +250,7 @@ def construct_prompt(user_query: str, contextual_info: list[dict]) -> dict[str, 
   }
 
 def main():
-  user_query = "Does free will exist?"
+  user_query = "What moral framework should society use?"
   
   embedding_client = genai.Client(
     vertexai=True,
