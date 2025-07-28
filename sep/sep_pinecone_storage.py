@@ -1,4 +1,3 @@
-import itertools
 from typing import Generator, cast
 from json_helper import JsonHelper
 import os
@@ -78,7 +77,7 @@ def process_and_clean_vector(v: dict) -> Embedding:
       del v['metadata']['bibliography']
       break
     
-  # assumption: no size concerns (vector always under 2MB) if bibliography is removed
+  # assumption: no size concerns (vector always under 40kB) if bibliography is removed
   if (estimate_size(v) > MAX_VECTOR_SIZE_BYTES):
     print(f'vec id {v['id']}, {estimate_size(v)}')
   return cast(Embedding, v)
@@ -88,23 +87,6 @@ def main():
   index = pc.Index(host=PC_INDEX, 
                    pool_threads=10
                    )
-  
-  # v1 = JsonHelper.load_file(os.path.join
-  #                           (BASE_READ_PATH,
-  #                             '19th-century-romantic-aesthetics-romantic-poetry-and-romantic-irony-6f334221db.json'))
-  # v2 = JsonHelper.load_file(os.path.join(BASE_READ_PATH,
-  #                             '18th-century-german-aesthetics-gottsched-and-his-critics:-truth-and-imagination-dfa0af8ea5.json'))
-  # v3 = JsonHelper.load_file(os.path.join(BASE_READ_PATH,
-  #                             'wittgenstein’s-logical-atomism-m-452306a480.json'))
-  
-  # print(estimate_size(v3))
-  
-  # test_v = [v1, v2, v3]
-  # [process_and_clean_vector(d) for d in test_v]
-    
-  # index.upsert(
-  #   cast(list[Vector], test_v)
-  # )
     
   with index: # generators are so cool!
     vectors = process_vectors()

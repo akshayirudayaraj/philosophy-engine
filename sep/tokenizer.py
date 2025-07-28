@@ -3,7 +3,7 @@ import os
 
 class Tokenizer:
   def __init__(self, model_path: str):
-    assert os.path.exists(model_path), 'Unable to find model!'
+    assert os.path.exists(model_path), 'unable to find model!'
 
     self._tokenizer = spm.SentencePieceProcessor()
     self._tokenizer.LoadFromFile(model_path)
