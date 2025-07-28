@@ -4,6 +4,9 @@ from collections.abc import Callable, Mapping
 from shared_types import Article
 import os
 
+class MalformedJson(Exception):
+  pass
+
 class JsonHelper:
   @staticmethod
   def _load_file(filepath: str) -> dict:
@@ -30,8 +33,21 @@ class JsonHelper:
     with open(fp + '.json', 'w') as file:
       json.dump(dict, file, indent=4, ensure_ascii=False)
   
+  # TODO: probably restructure the below methods because when calling the functions,
+  # it's unclear that `data`` will be passed into `process`
   @staticmethod
   def read_process_write(read_directory: str, write_directory: str, process: Callable[..., Mapping[str, Any] | list[Mapping[str, Any]]], **kwargs) -> None:
+    """reads JSONs from a directory, performs some process on each JSON, and writes to another directory\n
+    if the process results in multiple dictionaries being created (list of dict), each one is written to a separate file
+    
+    Args:
+        read_directory (str): directory to read from
+        write_directory (str): directory to write to (filename is the 'id' field)
+        process (Callable[..., Mapping[str, Any]  |  list[Mapping[str, Any]]]): function to be run on each JSON (must consume a dict)
+  
+    Raises:
+        MalformedJson: no id in the file passed in -- using it for logging purposes  
+    """
     for idx, file in enumerate(os.listdir(read_directory), 1):
       print(f'{idx}')
       
@@ -46,5 +62,35 @@ class JsonHelper:
       items_to_write = processed if isinstance(processed, list) else [processed]
       
       for processed_file in items_to_write:
+        if 'id' not in processed_file:
+          raise MalformedJson("every JSON object should have some ID associated with it!")
+        
         JsonHelper.write_dict_to_json(processed_file, os.path.join(write_directory, processed_file['id']))
         print(f'Wrote {file} to {write_directory}')
+  
+  # TODO: prevent duplicate code
+  @staticmethod
+  def process_and_write(write_directory: str, data: dict, process: Callable[..., Mapping[str, Any] | list[Mapping[str, Any]]], **kwargs):
+    """processes a JSON and writes to a directory\n
+    if the process results in multiple dictionaries being created (list of dict), each one is written to a separate file
+
+    Args:
+        write_directory (str): directory to be written to
+        data (dict): dictionary / JSON
+        process (Callable[..., Mapping[str, Any]  |  list[Mapping[str, Any]]]): function to be run on each JSON (must consume a dict)
+
+    Raises:
+        MalformedJson: no id in the file passed in -- using it for logging purposes
+    """
+    processed = process(data, **kwargs)
+    
+    if 'id' not in data:
+      raise MalformedJson("every JSON object should have some ID associated with it!")
+      
+    print(f'Processed {data['id']}')
+    
+    items_to_write = processed if isinstance(processed, list) else [processed]
+    
+    for processed_file in items_to_write:
+      JsonHelper.write_dict_to_json(processed_file, os.path.join(write_directory, processed_file['id']))
+      print(f'Wrote {data['id']} to {write_directory}')
