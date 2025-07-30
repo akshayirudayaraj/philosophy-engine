@@ -35,6 +35,7 @@ class Chunk(TypedDict):
   headers: list[str]
   
 # makes it easy for Pinecone ingestion
+# TODO: probably transition to Pinecone's very own Vector dataclass
 class Embedding(TypedDict):
   id: str
   values: list[float]

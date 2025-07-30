@@ -11,6 +11,9 @@ from shared_types import Article, Section
 from pylatexenc.latex2text import LatexNodes2Text
 
 class SepScraper(Scraper):
+  def __init__(self, base_scraping_url: str):
+    super().__init__(base_scraping_url)
+  
   def get_dates(self, date_info: str) -> dict[str, str | None]:
     DATE_FORMAT = '%a %b %d, %Y'
 

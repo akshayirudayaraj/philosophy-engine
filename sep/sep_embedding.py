@@ -1,6 +1,6 @@
 import os
 from embedding.gemini_embedder import GeminiEmbedder
-from embedding.batcher import Batcher
+from batcher import BatcherFactory
 from json_helper import JsonHelper
 
 def main():
@@ -29,7 +29,7 @@ def main():
   
   MAX_TOKENS_PER_MINUTE = 200_000 # via vertex API (https://cloud.google.com/vertex-ai/generative-ai/docs/quotas_)
   
-  batcher = Batcher(MAX_TOKENS_PER_MINUTE)
+  batcher = BatcherFactory.from_max_tpm(MAX_TOKENS_PER_MINUTE)
   batches = batcher.get_batches(base_read_filepath)
   batcher.run_process_on_each_batch(
     batches=batches,
