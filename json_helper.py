@@ -1,6 +1,6 @@
 import json
 from typing import Any, cast
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Generator, Mapping
 from shared_types import Article
 import os
 
@@ -26,6 +26,21 @@ class JsonHelper:
   @staticmethod
   def load_article(filepath: str) -> Article:
     return cast(Article, JsonHelper.load_file(filepath))
+  
+  # TODO: make directory passed in consistent with other functions (optional root dir)
+  @staticmethod
+  def load_files(read_directory: str) -> Generator[dict]:
+    for file in os.listdir(read_directory):
+      yield JsonHelper._load_file(file)
+  
+  # TODO: think about if it's possible to somehow pass in the type here so that the output is compatible
+  # with other helper functions without manual casting
+  @staticmethod
+  def process_files(read_directory: str, fn: Callable[..., Mapping[str, Any]], **kwargs) -> Generator[Mapping[str, Any]]:
+    for file in os.listdir(read_directory):
+      content = JsonHelper._load_file(os.path.join(read_directory, file))
+      processed = fn(content, **kwargs)
+      yield processed
   
   @staticmethod
   def write_dict_to_json(dict: Mapping[str, Any], filepath: str) -> None:
@@ -94,3 +109,7 @@ class JsonHelper:
     for processed_file in items_to_write:
       JsonHelper.write_dict_to_json(processed_file, os.path.join(write_directory, processed_file['id']))
       print(f'Wrote {data['id']} to {write_directory}')
+      
+  @staticmethod
+  def estimate_size(vector: dict):
+    return len(json.dumps(vector, ensure_ascii=False).encode('utf-8'))
