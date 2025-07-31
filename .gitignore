@@ -1,5 +1,10 @@
 # TODO: move all on-disk JSONs to small sql database (on postgresql)
+
+# tmp
 /data/
+claude_output.md
+
+# will always keep these
 .env
 __pycache__/
 **.log
