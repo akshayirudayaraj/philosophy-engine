@@ -5,12 +5,12 @@ import string
 from typing import cast
 
 from bs4 import Tag
-from scraping.scraper import Scraper, SkipIteration
+from scraping.scraper import _BaseScraper, SkipIteration
 from shared_types import Article, Section
 
 from pylatexenc.latex2text import LatexNodes2Text
 
-class SepScraper(Scraper):
+class SepScraper(_BaseScraper):
   def __init__(self, base_scraping_url: str):
     super().__init__(base_scraping_url)
   
@@ -116,25 +116,25 @@ class SepScraper(Scraper):
     }
 
   def scrape_article(self, link: str) -> Article:
-    soup = self._fetch_url(link)
+    article_soup = self._fetch_url(link)
 
-    title = self.find_required(soup, name="h1").get_text()
+    title = self.find_required(article_soup, name="h1").get_text()
     if (title == 'Document Retired'):
       raise SkipIteration()
     
-    date_info = self.find_required(soup, id="pubinfo").get_text()
+    date_info = self.find_required(article_soup, id="pubinfo").get_text()
     dates = self.get_dates(date_info)
     
-    preamble = self.find_required(soup, id="preamble").get_text()
+    preamble = self.find_required(article_soup, id="preamble").get_text()
     
-    main_content = self.find_required(soup, id="main-text")
+    main_content = self.find_required(article_soup, id="main-text")
     all_tags = main_content.descendants # includes nested
     
     # TODO: clean up some duplicate phrases in all_tags
     
     section_contents = self.get_content_by_section(all_tags)
     
-    biblio_list = [entry.get_text().replace("\n", " ") for entry in self.find_required(soup, id="bibliography").find_all("li")]
+    biblio_list = [entry.get_text().replace("\n", " ") for entry in self.find_required(article_soup, id="bibliography").find_all("li")]
     
     sep_url_article_id = link.split('/')[-2]
     contributors = self.get_contributor_information(sep_url_article_id)
@@ -156,7 +156,7 @@ class SepScraper(Scraper):
     }
     
   def extract_links(self) -> Generator[str]:
-    article_entries = self.find_required(self._beautiful_soup, id="content").find_all("a")
+    article_entries = self.find_required(id="content").find_all("a")
     for entry in article_entries:
       safe_entry = cast(Tag, entry) # lots of casts, too lazy rn to work around
       link = safe_entry.get('href')

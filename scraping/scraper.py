@@ -8,7 +8,7 @@ from shared_types import Article
 class SkipIteration(Exception):
   pass
 
-class Scraper(ABC):
+class SoupScraper:
   _base_scraping_url: str
   _beautiful_soup: BeautifulSoup
   
@@ -21,15 +21,22 @@ class Scraper(ABC):
     soup = BeautifulSoup(page.content, "lxml")
     return soup
   
-  def find_required(self, soup: BeautifulSoup, **kwargs) -> Tag:
+  def find_required(self, soup: BeautifulSoup | None = None, **kwargs) -> Tag:
+    if soup is None:
+      soup = self._beautiful_soup
+    
     tag = soup.find(**kwargs)
     if not isinstance(tag, Tag):
       raise ValueError("unable to find tag! double check your search criteria or the raw html in the document.")
     else:
       return tag
-      
+
+class _BaseScraper(ABC, SoupScraper):
+  def __init__(self, base_scraping_url: str):
+    super().__init__(base_scraping_url)
+  
   # might be specifying way too much here, in which case i'll generalize as i add more data sources
-      
+
   @abstractmethod
   def extract_links(self) -> Generator[str]:
     pass
