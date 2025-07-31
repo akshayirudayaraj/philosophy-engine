@@ -3,7 +3,7 @@ from embedding.tokenizer import Tokenizer
 
 from typing import Any, cast
 
-from json_helper import JsonHelper
+from file_helper import JsonHelper
 from embedding.chunker import Chunker
 import os
 

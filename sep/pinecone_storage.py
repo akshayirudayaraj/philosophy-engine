@@ -1,6 +1,6 @@
 from typing import cast, Generator
 from pinecone import Vector
-from json_helper import JsonHelper
+from file_helper import JsonHelper
 import os
 from pinecone_helper import PineconeDB
 

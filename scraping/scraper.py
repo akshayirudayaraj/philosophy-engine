@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 from collections.abc import Generator
 import requests
 from bs4 import BeautifulSoup, Tag
-from json_helper import JsonHelper
+from file_helper import JsonHelper
 from shared_types import Article
 
 class SkipIteration(Exception):

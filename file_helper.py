@@ -113,3 +113,9 @@ class JsonHelper:
   @staticmethod
   def estimate_size(vector: dict):
     return len(json.dumps(vector, ensure_ascii=False).encode('utf-8'))
+  
+class MdHelper:
+  @staticmethod
+  def write_to_md(filename: str, text: str):
+    with open(filename + '.md', 'w') as file:
+      file.write(text)

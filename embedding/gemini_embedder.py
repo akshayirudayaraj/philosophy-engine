@@ -18,15 +18,15 @@ class GeminiEmbedder(DenseEmbedder):
     super().__init__(
       model_id=self.EMBEDDING_MODEL_ID,
       output_dim=output_dim,
+      task_type=task_type,
       config={
         'vertexai': True,
         'project': self.CLOUD_PROJECT_ID,
         'location': self.CLOUD_REGION,
       },
-      task_type=task_type,
     )
     
-    self._client = genai.Client(*self._config)
+    self._client = genai.Client(**self._config)
     
   def embed(self, text: str, title: str = "") -> list[float]:
     embedding = self._client.models.embed_content(

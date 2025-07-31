@@ -6,7 +6,7 @@ import numpy as np
 class DenseEmbedder(ABC):
   _dense_output_dimensionality: int
   _model_id: str
-  _config: dict[str, str]
+  _config: dict[str, Any]
   _task_type: str | None
   
   def __init__(self, model_id: str, output_dim: int, config: dict[str, Any], task_type=None):

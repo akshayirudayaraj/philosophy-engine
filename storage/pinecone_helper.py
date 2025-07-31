@@ -1,6 +1,6 @@
 from collections.abc import Generator
 from typing import cast
-from json_helper import JsonHelper
+from file_helper import JsonHelper
 from shared_types import Embedding
 from batcher import BatcherFactory
 from logging_helper import LoggingMixin
@@ -82,6 +82,16 @@ class PineconeDB(LoggingMixin):
     
   def remove_non_ascii_fast(self, text):
     return text.encode('ascii', 'ignore').decode('ascii')
-      
+  
+  def query(self, query_vector: list[float], num_res_to_retrieve: int = 10) -> dict:
+    results = self._index.query(
+      namespace='__default__',
+      vector=query_vector,
+      top_k=num_res_to_retrieve,
+      include_metadata=True,
+      include_values=True
+    )
+    
+    return cast(dict, results) # FIXME: manual cast
 
 # TODO: will shift architecture a bit to a DatabaseFactory class if I get MySQL/SQLite or Neo4j involved  

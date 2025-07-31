@@ -1,7 +1,7 @@
 import os
 from embedding.gemini_embedder import GeminiEmbedder
 from batcher import BatcherFactory
-from json_helper import JsonHelper
+from file_helper import JsonHelper
 
 def main():
   # client = genai.Client(

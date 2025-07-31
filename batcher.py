@@ -5,8 +5,7 @@ from logging_helper import LoggingMixin
 import os
 import time
 from typing import cast
-
-from json_helper import JsonHelper
+from file_helper import JsonHelper
 
 class BatcherFactory:
   @staticmethod
