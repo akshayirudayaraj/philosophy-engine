@@ -1,8 +1,8 @@
 from typing import cast, Generator
 from pinecone import Vector
-from file_helper import JsonHelper
+from core.file_helper import JsonHelper
 import os
-from storage.pinecone_helper import PineconeDB
+from core.storage.pinecone_helper import PineconeDB
 
 def main():  
   read_directory = os.path.join('data', 'sep', 'embeddings')

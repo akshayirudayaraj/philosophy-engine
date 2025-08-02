@@ -2,7 +2,7 @@ from enum import Enum
 import os
 from typing import TypedDict
 from anthropic import Anthropic
-from file_helper import MdHelper, JsonHelper
+from core.file_helper import MdHelper, JsonHelper
 
 class LargeLanguageModels(Enum):
   CLAUDE_HAIKU_3_5 = "claude-3-5-haiku-latest"
@@ -61,7 +61,7 @@ class PromptHandler:
     id = match['id']
     link = match['metadata']['link']
     
-    retrieval_title = match['title']
+    retrieval_title = match['metadata']['title']
     retrieval_headers = match['headers']
     
     internal_json_title = "sep-" + retrieval_title.lower() # .replace(' ', '-').replace('/', '-')

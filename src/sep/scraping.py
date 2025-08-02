@@ -5,8 +5,8 @@ import string
 from typing import cast
 
 from bs4 import Tag
-from scraping.scraper import _BaseScraper, SkipIteration
-from shared_types import Article, Section
+from core.scraping.scraper import _BaseScraper, SkipIteration
+from src.shared_types import Article, Section
 
 from pylatexenc.latex2text import LatexNodes2Text
 

@@ -1,6 +1,6 @@
 from hashlib import sha256
 from typing import Any
-from shared_types import Article, Section, Chunk
+from src.shared_types import Article, Section, Chunk
 from collections import deque # for O(1) popping
 
 class ChunkTracker:

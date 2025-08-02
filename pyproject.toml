@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools>=80.8.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "philosophy-rag-engine"
+dynamic = ["version"]
+
+dependencies = [
+  
+]
+
+requires-python = ">= 3.12"
+
+authors = [
+  {name = "Akshay Irudayaraj", email = "akshay.irudayaraj@gmail.com"}
+]
+
+description = "rag for philosophy"
+
+[tool.setuptools.packages.find]
+where = ["src"]

@@ -1,5 +1,5 @@
-from embedding.embedder import DenseEmbedder
-from shared_types import Chunk, Embedding, VectorMetadata
+from embedder import DenseEmbedder
+from src.shared_types import Chunk, Embedding, VectorMetadata
 import os
 from google import genai
 from google.genai import types, Client

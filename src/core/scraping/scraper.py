@@ -2,8 +2,8 @@ from abc import ABC, abstractmethod
 from collections.abc import Generator
 import requests
 from bs4 import BeautifulSoup, Tag
-from file_helper import JsonHelper
-from shared_types import Article
+from core.file_helper import JsonHelper
+from src.shared_types import Article
 
 class SkipIteration(Exception):
   pass

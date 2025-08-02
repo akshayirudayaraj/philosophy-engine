@@ -1,10 +1,10 @@
 from collections.abc import Callable, Mapping
-from embedding.tokenizer import Tokenizer
+from core.embedding.tokenizer import Tokenizer
 
 from typing import Any, cast
 
-from file_helper import JsonHelper
-from embedding.chunker import Chunker
+from core.file_helper import JsonHelper
+from core.embedding.chunker import Chunker
 import os
 
 TOKENIZER_MODEL_PATH = os.path.join('embedding', 'tokenizing_models', 'gemma_tokenizer.model')
