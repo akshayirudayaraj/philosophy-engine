@@ -1,11 +1,12 @@
 from collections.abc import Generator
 from typing import cast
-from core.file_helper import JsonHelper
-from src.shared_types import Embedding
-from core.batcher import BatcherFactory
-from core.logging_helper import LoggingMixin
 import os
 from pinecone import Pinecone, Vector
+
+from core.file_helper import JsonHelper
+from shared_types import Embedding
+from core.batcher import BatcherFactory
+from core.logging_helper import LoggingMixin
 
 class PineconeDB(LoggingMixin):
   MAX_VECTOR_SIZE_BYTES = 40_960

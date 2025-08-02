@@ -1,7 +1,8 @@
 from hashlib import sha256
 from typing import Any
-from src.shared_types import Article, Section, Chunk
 from collections import deque # for O(1) popping
+
+from shared_types import Article, Section, Chunk
 
 class ChunkTracker:
   _token_limit_per_chunk: int
