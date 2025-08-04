@@ -1,4 +1,4 @@
-from typing import NotRequired, TypedDict
+from typing import TypedDict
 
 class Section(TypedDict):
   header: list[str]
@@ -9,8 +9,8 @@ class Metadata(TypedDict):
   intro: str # either a preamble for SEP or abstract for papers
   authors: list[str]
   editors: list[str]
-  original_date: str
-  revised_date: NotRequired[str | None]
+  original_date_published: str
+  revision_date: str | None
   link: str
   bibliography: list[str]
   

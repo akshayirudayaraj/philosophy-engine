@@ -4,9 +4,10 @@ import datetime
 import string
 from typing import cast
 
+from core.storage.sqlite_helper import SqliteHelper
 from bs4 import Tag
 from core.scraping.scraper import _BaseScraper, SkipIteration
-from src.shared_types import Article, Section
+from shared_types import Article, Section
 
 from pylatexenc.latex2text import LatexNodes2Text
 
@@ -138,16 +139,18 @@ class SepScraper(_BaseScraper):
     
     sep_url_article_id = link.split('/')[-2]
     contributors = self.get_contributor_information(sep_url_article_id)
+    authors = contributors['authors']
+    editors = contributors['editors']
     
     return {
       'id': "sep-" + title.lower().replace(' ', '-').replace('/', '-'),
       'title': title,
       'content': section_contents,
       'metadata': {
-        'authors': contributors['authors'],
-        'editors': contributors['editors'],
-        'original_date': cast(str, dates['original_date']), # hacky solution (i know original_date will always exist)
-        'revised_date': dates['revision_date'],
+        'authors': authors,
+        'editors': editors,
+        'original_date_published': cast(str, dates['original_date']), # hacky solution (i know original_date will always exist)
+        'revision_date': dates['revision_date'],
         'link': link,
         'bibliography': biblio_list,
         'intro': preamble,
@@ -175,21 +178,79 @@ class SepScraper(_BaseScraper):
     
 #   print("finished writing " + article['title'] + "!\n")
 
+# SEP data structure:
+# article_metadata -> stores id, title, and other metadata
+# article_content -> stores id, header_tree_name, text_associated, 
+  # where there are multiple entries for each id since there are multiple sections in each article
+
+def format_article_for_db(datum: Article) -> dict:
+  return {
+      'id': datum['id'],
+      'title': datum['title'],
+      'organization': datum['metadata']['organization'],
+      'intro': datum['metadata']['intro'],
+      'authors': ",".join(datum['metadata']['authors']),
+      'editors': ",".join(datum['metadata']['editors']),
+      'original_date': datum['metadata']['original_date_published'],
+      'revised_date': datum['metadata']['revision_date'],
+      'link': datum['metadata']['link'],
+      'bibliography': '\n'.join(datum['metadata']['bibliography'])
+  }
+
 def main():
   sep_chronological_entries = "https://plato.stanford.edu/published.html"
   sep_scraper = SepScraper(base_scraping_url=sep_chronological_entries)
   
-  article_directory = os.path.join('data', 'sep', 'articles')
-  sep_scraper.scrape_and_store(base_write_directory=article_directory)
-  # entries = get_all_post_links(main_soup)
+  # TODO: abstract db creation and handling (all of the below) into articledb class that uses sqlite helper
+  db = SqliteHelper('sep.db')
   
-  # for i, link in enumerate(entries, 1):
-  #   try:
-  #     scrape_article_and_store(link)
-  #   except SkipIteration:
-  #     pass
+  db.create_table_if_not_created(
+    "article_metadata",
+    "id TEXT PRIMARY KEY",
+    "title TEXT NOT NULL",
+    "organization TEXT NOT NULL",
+    "intro TEXT",
+    "authors TEXT NOT NULL",
+    "editors TEXT",
+    "original_date_published TEXT NOT NULL",
+    "date_revised TEXT",
+    "link TEXT NOT NULL",
+    "bibliography TEXT"
+  )
+  
+  db.create_table_if_not_created(
+    "article_content",
+    "section_id TEXT PRIMARY KEY",
+    "associated_article_id INTEGER NOT NULL",
+    "header_list TEXT NOT NULL",
+    "content TEXT NOT NULL",
+    "FOREIGN KEY (associated_article_id) REFERENCES article_metadata(id) ON DELETE CASCADE"
+  )
+  
+  data = sep_scraper.scrape_articles()
+  
+  for datum in data:
+    formatted_datum = format_article_for_db(datum)
     
-  #   print(f'{i}/1852')
+    db.execute_change("""
+                      INSERT OR REPLACE 
+                      INTO article_metadata
+                      VALUES (
+                        :id, :title, :organization, :intro, :authors, :editors, :original_date,
+                        :revised_date, :link, :bibliography
+                      );
+                      """, formatted_datum)
+    
+    for section in datum['content']:
+      deepest_header = section['header'][-1]
+      section_id = formatted_datum['id'] + '-' + deepest_header.lower().replace(' ', '-').replace('/', '-')
+      header_list = ",".join(section['header'])
+      
+      db.execute_change("""
+                        INSERT OR REPLACE
+                        INTO article_content
+                        VALUES (?, ?, ?, ?);
+                        """, (section_id, formatted_datum['id'], header_list, section['text']))
   
 if __name__ == '__main__':
   main()
