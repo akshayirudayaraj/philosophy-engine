@@ -75,7 +75,7 @@ class ArticleStorage:
       formatted_datum = self._format_article_for_db(datum)
       self._insert_article_metadata(formatted_datum)
       self._insert_article_content(datum)
-      print(f'finished storing article #{idx}')
+      print(f'finished storing article {datum['title']}, #{idx}')
         
   def _insert_article_metadata(self, formatted_datum: dict):
     self._sqlite_interface.execute_change("""

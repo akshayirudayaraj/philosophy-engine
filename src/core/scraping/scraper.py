@@ -37,6 +37,7 @@ class SoupScraper:
     else:
       return tag
 
+# TODO: add multithreading? scraping takes ~30 minutes right now for 1.8k articles of 12k words each
 class _BaseScraper(ABC, SoupScraper):
   def __init__(self, base_scraping_url: str):
     super().__init__(base_scraping_url)

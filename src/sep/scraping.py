@@ -1,11 +1,11 @@
 from collections.abc import Generator
+import json
 import string
 from typing import cast
 
 from bs4 import Tag
 import datetime
 from pylatexenc.latex2text import LatexNodes2Text
-import json
 
 from core.storage.sqlite_helper import SqliteHelper, ArticleStorage
 from core.scraping.scraper import _BaseScraper, SkipIteration, ParseException
@@ -15,7 +15,7 @@ from shared_types import Article, Section
 class SepScraper(_BaseScraper):
   DATE_FORMAT: str = '%a %b %d, %Y'
   _ACCEPTED_HEADER_TAGS = ['h1', 'h2', 'h3', 'h4', 'h5', 'h6']
-  _ACCEPTED_TEXT_TAGS = ['p', 'blockquote', 'ol', 'ul', 'div']
+  # _ACCEPTED_TEXT_TAGS = ['p', 'blockquote', 'ol', 'ul', 'span']
   
   def __init__(self, base_scraping_url: str):
     super().__init__(base_scraping_url)
@@ -62,21 +62,30 @@ class SepScraper(_BaseScraper):
     curr_header_text = current_element.get_text().lstrip(string.digits + '.' + ' ')
     running_header_nest_list.append(curr_header_text)
     
-  def _extract_content_by_section(self, main_content: Tag) -> list[Section]:
+    
+  """
+  latex conversion to natural language: https://pylatexenc.readthedocs.io/en/latest/latex2text/
+    certain logic operators aren't handled like logical and/or/not (\\land, etc.) - satisfactory for now
+    because some people use the synonymous \\wedge, etc.
+    
+    might want to find better conversion in the future
+    
+  TODO: how to handle logic formula lists? all graphs have an (i) tag --> can go to that link, search for the right
+  figure name, and put the description in place; some kind of AI solution is probably what i'll do for research papers though
+  """
+  # TODO: this method is way too tall
+  def _extract_content_by_section(self, main_content: Tag, section_contents: list[Section] = [], running_header_nest_list: list[str] = []) -> list[Section]:
     def add_content_to_last_section(text: str) -> None:
       # text = text.strip()
       text = LatexNodes2Text().latex_to_text(text)
       text = text.replace("\n", " ")
       section_contents[-1]['text'] += text
-    
-    content_children = main_content.children # tags and loose text, but no duplicates (as opposed to descendants)
-      # PageElement is an abstract class (non exported), so it's important that this is here for type checking
-      # each PageElement (what this iterates over) is either a Tag or NavigableString
-        
-    section_contents = []
-    running_header_nest_list = []
+          
+    for current_element in main_content.children:
+        # tags and loose text, but no duplicates (as opposed to descendants)
+        # PageElement is an abstract class (non exported), so it's important that this is here for type checking
+        # each PageElement (what this iterates over) is either a Tag or NavigableString
       
-    for current_element in content_children:
       if not isinstance(current_element, Tag): # then: NavigableString
         current_element = str(current_element)
 
@@ -86,41 +95,34 @@ class SepScraper(_BaseScraper):
         add_content_to_last_section(current_element)
       
       elif current_element.name in self._ACCEPTED_HEADER_TAGS:
-          prev_child = current_element.find_previous(name=self._ACCEPTED_HEADER_TAGS)
-          
-          if not isinstance(prev_child, Tag | None):
-            raise ParseException('prev_header current_element not a Tag or None')
-            # there's no way this is an object other than a Tag because we're finding previous based on tag name
-          
-          self._update_running_header_list(current_element, prev_child, running_header_nest_list)
-          
-          if section_contents: # check this isn't first iteration
-            # idea is that we do some trimming/cleaning operations when we know we're adding a new item to the list]
-            if section_contents[-1]['text'] == "":
-              section_contents.pop()
-            else:
-              section_contents[-1]['text'] = section_contents[-1]['text'].strip()
+        prev_child = current_element.find_previous(name=self._ACCEPTED_HEADER_TAGS)
+        
+        if not isinstance(prev_child, Tag | None):
+          raise ParseException('prev_header current_element not a Tag or None')
+          # there's no way this is an object other than a Tag because we're finding previous based on tag name
+        
+        self._update_running_header_list(current_element, prev_child, running_header_nest_list)
+        
+        if section_contents: # check this isn't first iteration
+          # do some trimming/cleaning operations to previous entry when we know we're adding a new entry
+          if section_contents[-1]['text'] == "":
+            section_contents.pop()
+          else:
+            section_contents[-1]['text'] = section_contents[-1]['text'].strip()
 
-          section_contents.append({
-            "header": running_header_nest_list.copy(),
-            "text": "",
-          })
+        section_contents.append({
+          "header": running_header_nest_list.copy(),
+          "text": "",
+        })
+        
+      elif current_element.name == 'div': # recursively scrape within divs because they sometimes nest headers/subheaders+text
+        self._extract_content_by_section(current_element, section_contents, running_header_nest_list)
           
-      elif current_element.name in self._ACCEPTED_TEXT_TAGS:
+      else:
         add_content_to_last_section(current_element.get_text())
         
-      else:
-        raise ParseException(f"Weird tag {current_element.name} unable to be processed. Direct current_element of main-text")
-
-    '''
-      latex conversion to natural language: https://pylatexenc.readthedocs.io/en/latest/latex2text/
-        certain logic operators aren't handled like logical and/or/not (\\land, etc.) - satisfactory for now
-        because some people use the synonymous \\wedge, etc.
-        
-        might want to find better conversion in the future
-        
-      TODO: how to handle logic formula lists??
-    '''
+      # else:
+      #   raise ParseException(f"Weird tag {current_element.name} unable to be processed. Direct current_element of main-text")
     
     return section_contents
 
@@ -210,7 +212,13 @@ def main():
   
   article_storage_helper.store_article_dictionaries(data)
   
-  # data = sep_scraper.scrape_article('https://plato.stanford.edu/entries/logic-games/')
+  # test suite...needs to be formalized:
+  # manual inspection with 
+  # - "Experimental Jurisprudence" (headers with no text removed, deep nesting)
+  # - "Logic and Games" (lots of inline symbols and symbols with designated blocks; all kinds of different tags)
+  # - "Logic for Analyzing Games" (content in nested divs; logic formula trees [not working])
+  
+  # data = sep_scraper.scrape_article('https://plato.stanford.edu/entries/experimental-jurisprudence/')
   # print(json.dumps(data['content'], ensure_ascii=False, indent=4))
   
 if __name__ == '__main__':
