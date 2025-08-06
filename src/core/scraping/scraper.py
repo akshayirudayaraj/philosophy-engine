@@ -3,10 +3,15 @@ from collections.abc import Generator
 import requests
 from bs4 import BeautifulSoup, Tag
 
-from core.file_helper import JsonHelper
 from shared_types import Article
 
 class SkipIteration(Exception):
+  def __init__(self, title: str):
+    print(f'Skipped {title} because the document has been retired!')
+  
+  pass
+
+class ParseException(Exception):
   pass
 
 class SoupScraper:
@@ -55,8 +60,12 @@ class _BaseScraper(ABC, SoupScraper):
       except SkipIteration:
         pass
   
-  def scrape_and_store(self, base_write_directory: str) -> None:
-    articles = self.scrape_articles()
-    for idx, article in enumerate(articles, 1):
-      JsonHelper.write_dict_to_json(dict=article, filepath=base_write_directory)
-      print(f'Wrote {article} to {base_write_directory}, #{idx}')
+  
+  # def scrape_and_store_json(self, base_write_directory: str) -> None:
+  #   articles = self.scrape_articles()
+  #   for idx, article in enumerate(articles, 1):
+  #     JsonHelper.write_dict_to_json(dict=article, filepath=base_write_directory)
+  #     print(f'Wrote {article} to {base_write_directory}, #{idx}')
+      
+  # def scrape_and_store_sql(self, db) -> None:
+    
