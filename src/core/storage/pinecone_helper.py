@@ -30,16 +30,16 @@ class PineconeDB(LoggingMixin):
       **kwargs,
     )
 
-  def upsert_all_vectors(self, vectors: Generator[Vector]):
+  def upsert_all_vectors(self, vectors: Generator[Vector], namespace: str = '__default__'):
     with self._index: # generators are cool!
       batcher = BatcherFactory.from_batch_size(batch_size=self._batch_size)
       batches = batcher.get_batches(cast(Generator[dict], vectors)) # FIXME: manual casting, weird type issues
     
     for batch in batches:
-      self.upsert_vector_batch(batch)
+      self.upsert_vector_batch(batch, namespace)
 
-  def upsert_vector_batch(self, batch: list[dict]):
-    futures = [self._index.upsert(cast(list[Vector], batch), async_req=True, show_progress=True)]
+  def upsert_vector_batch(self, batch: list[dict], namespace: str):
+    futures = [self._index.upsert(cast(list[Vector], batch), namespace=namespace, async_req=True, show_progress=True)]
       
     for future in futures: # using ignores here bc i'm following docs (future.get() should raise on error)
       try:
@@ -75,7 +75,17 @@ class PineconeDB(LoggingMixin):
         del v['metadata']['bibliography']
         break
       
-    # assumption: no size concerns (vector always under 40kB) if bibliography is removed
+    while JsonHelper.estimate_size(v) > self.MAX_VECTOR_SIZE_BYTES:
+      intro_len = len(v['metadata']['intro'])
+      indices_to_keep = int((PERCENT_TO_KEEP/100) * intro_len)
+      
+      if (intro_len > indices_to_keep):
+        v['metadata']['intro'] = v['metadata']['intro'][:indices_to_keep]
+      else:
+        del v['metadata']['intro']
+        break
+      
+    # assumption: no size concerns (vector always under 40kB) if bibliography and intro are removed
     if (JsonHelper.estimate_size(v) > self.MAX_VECTOR_SIZE_BYTES):
       print(f'vec id {v['id']}, {JsonHelper.estimate_size(v)}')
       
