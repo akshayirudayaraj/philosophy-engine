@@ -76,7 +76,7 @@ class SepScraper(_BaseScraper):
   figure name, and put the description in place; some kind of AI solution is probably what i'll do for research papers though
   """
   # TODO: this method is way too tall
-  def _extract_content_by_section(self, main_content: Tag, section_contents: list[Section] = [], running_header_nest_list: list[str] = []) -> list[Section]:
+  def _extract_content_by_section(self, main_content: Tag, section_contents: list[Section], running_header_nest_list: list[str]) -> list[Section]:
     def add_content_to_last_section(text: str) -> None:
       # text = text.strip()
       text = LatexNodes2Text().latex_to_text(text)
@@ -93,8 +93,12 @@ class SepScraper(_BaseScraper):
 
         if current_element.strip() == '': # Empty string element; these happen often due to the way SEP formats HTML
           continue
-
-        add_content_to_last_section(current_element)
+          
+        if section_contents:
+          add_content_to_last_section(current_element)
+        else:
+          print('Strange structure where there is loose text above the first header (for one of the below articles)')
+          continue
       
       elif current_element.name in self._ACCEPTED_HEADER_TAGS:
         prev_child = current_element.find_previous(name=self._ACCEPTED_HEADER_TAGS)
@@ -120,8 +124,12 @@ class SepScraper(_BaseScraper):
       elif current_element.name == 'div': # recursively scrape within divs because they sometimes nest headers/subheaders+text
         self._extract_content_by_section(current_element, section_contents, running_header_nest_list)
           
-      else:
-        add_content_to_last_section(current_element.get_text())
+      else: # some other tag element
+        if section_contents:
+          add_content_to_last_section(current_element.get_text())
+        else:
+          print('Strange structure where there is some tag above the first header (for one of the below articles)')
+          continue
         
       # else:
       #   raise ParseException(f"Weird tag {current_element.name} unable to be processed. Direct current_element of main-text")
@@ -158,7 +166,7 @@ class SepScraper(_BaseScraper):
 
     title = self.find_required(article_soup, name="h1").get_text()
     if (title == 'Document Retired'):
-      raise SkipIteration(title)
+      raise SkipIteration(link)
     
     date_info = self.find_required(article_soup, id="pubinfo").get_text()
     dates = self._get_dates(date_info)
@@ -167,7 +175,10 @@ class SepScraper(_BaseScraper):
     preamble = raw_preamble.replace("\n", " ").strip()
     
     main_content = self.find_required(article_soup, id="main-text")    
-    section_contents = self._extract_content_by_section(main_content)
+    section_contents = self._extract_content_by_section(main_content, [], [])
+      # default values are set at function define-time, so i can't use default values
+      # in a recursive instance where i'm modifying parameters because they don't get
+      # reset every function call and keep growing larger
     
     biblio_list = [entry.get_text().replace("\n", " ") for entry in self.find_required(article_soup, id="bibliography").find_all("li")]
     
@@ -177,7 +188,7 @@ class SepScraper(_BaseScraper):
     editors = contributors['editors']
     
     return {
-      'id': "sep-" + title.lower().replace(' ', '-').replace('/', '-'),
+      'id': title.lower().replace(' ', '-').replace('/', '-'),
       'title': title,
       'content': section_contents,
       'metadata': {
@@ -211,9 +222,14 @@ def main():
   # article_storage_helper.create_article_content_and_metadata_tables()
   
   data = sep_scraper.scrape_articles()
+  # data = [sep_scraper.scrape_article('https://plato.stanford.edu/entries/genomics/')]
+  #         sep_scraper.scrape_article('https://plato.stanford.edu/entries/experimental-jurisprudence/'),
+  #         sep_scraper.scrape_article('https://plato.stanford.edu/entries/logic-games/'),
+  #         sep_scraper.scrape_article('https://plato.stanford.edu/entries/logics-for-games/')]
   
   # article_storage_helper.store_article_dictionaries(data)
   
+  # TODO: switch to log infrastructure instead of direct prints
   for idx, datum in enumerate(data, 1):
     try:
       JsonHelper.write_dict_to_json(datum, os.path.join('data', 'sep_v2', 'articles', datum['id']))
