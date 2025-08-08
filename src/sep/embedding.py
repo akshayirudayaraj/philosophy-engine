@@ -18,7 +18,7 @@ def main():
   # test_write_filepath = os.path.join(os.getcwd(), 'sep', 'embeddings', embedding['id'])
   # JsonHelper.write_dict_to_json(cast(dict, embedding), test_write_filepath)
   
-  base_filepath = os.path.join(os.getcwd(), 'data', 'sep')
+  base_filepath = os.path.join(os.getcwd(), 'data', 'sep_v2')
   base_read_filepath = os.path.join(base_filepath, 'chunked_articles')
   base_write_filepath = os.path.join(base_filepath, 'embeddings')
   

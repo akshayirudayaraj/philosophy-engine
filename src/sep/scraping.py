@@ -1,5 +1,6 @@
 from collections.abc import Generator
 import json
+import os
 import string
 from typing import cast
 
@@ -10,6 +11,7 @@ from pylatexenc.latex2text import LatexNodes2Text
 from core.storage.sqlite_helper import SqliteHelper, ArticleStorage
 from core.scraping.scraper import _BaseScraper, SkipIteration, ParseException
 from shared_types import Article, Section
+from core.file_helper import JsonHelper
 
 # TODO: refactor class so it's more modular and functions aren't so tall
 class SepScraper(_BaseScraper):
@@ -203,14 +205,22 @@ def main():
   sep_chronological_entries = "https://plato.stanford.edu/published.html"
   sep_scraper = SepScraper(base_scraping_url=sep_chronological_entries)
   
-  sqlite_db_interface = SqliteHelper('sep.db')
-  article_storage_helper = ArticleStorage(sqlite_db_interface)
+  # sqlite_db_interface = SqliteHelper('sep.db')
+  # article_storage_helper = ArticleStorage(sqlite_db_interface)
   
-  article_storage_helper.create_article_content_and_metadata_tables()
+  # article_storage_helper.create_article_content_and_metadata_tables()
   
   data = sep_scraper.scrape_articles()
   
-  article_storage_helper.store_article_dictionaries(data)
+  # article_storage_helper.store_article_dictionaries(data)
+  
+  for idx, datum in enumerate(data, 1):
+    try:
+      JsonHelper.write_dict_to_json(datum, os.path.join('data', 'sep_v2', 'articles', datum['id']))
+      print(f'wrote file {datum['id']}, #{idx}')
+    except Exception as e:
+      print(f'failed to write {datum['id']}, #{idx}')
+      print(f'\t{e}')
   
   # test suite...needs to be formalized:
   # manual inspection with 

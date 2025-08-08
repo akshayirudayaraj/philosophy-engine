@@ -29,9 +29,21 @@ class JsonHelper:
   
   # TODO: make directory passed in consistent with other functions (optional root dir)
   @staticmethod
-  def load_files(read_directory: str) -> Generator[dict]:
+  def load_files_from_dir(read_directory: str) -> Generator[dict]:
     for file in os.listdir(read_directory):
       yield JsonHelper._load_file(file)
+      
+  @staticmethod
+  def load_dicts_from_file(read_fp: str) -> Generator[dict]:
+    fp = os.path.join(os.getcwd(), read_fp + '.json')
+    dicts: list[dict]
+    
+    with open(fp, 'r') as file:
+      dicts = json.load(file)
+    
+    for d in dicts:
+      yield d
+      
   
   # TODO: think about if it's possible to somehow pass in the type here so that the output is compatible
   # with other helper functions without manual casting
@@ -63,6 +75,7 @@ class JsonHelper:
     Raises:
         MalformedJson: no id in the file passed in -- using it for logging purposes  
     """
+    
     for idx, file in enumerate(os.listdir(read_directory), 1):
       print(f'{idx}')
       
@@ -82,6 +95,38 @@ class JsonHelper:
         
         JsonHelper.write_dict_to_json(processed_file, os.path.join(write_directory, processed_file['id']))
         print(f'Wrote {file} to {write_directory}')
+        
+    # """reads JSONs from a file, performs some process on each JSON, and writes to another filepath\n
+    # if the process results in multiple dictionaries being created (list of dict), each one is written to a separate file
+    
+    # Args:
+    #     read_directory (str): file to read from
+    #     write_directory (str): file to write to
+    #     process (Callable[..., Mapping[str, Any]  |  list[Mapping[str, Any]]]): function to be run on each JSON (must consume a dict)
+  
+    # Raises:
+    #     MalformedJson: no id in the file passed in -- using it for logging purposes  
+    # """
+    
+    # dictionaries = JsonHelper.load_dicts_from_file(read_directory)
+    
+    # for idx, content in dictionaries:
+    #   if 'id' not in content:
+    #       raise MalformedJson("every JSON object should have some ID associated with it!")
+      
+    #   print(f'{idx}')
+            
+    #   print(f'Read {content['id']} from {read_directory}')
+      
+    #   processed = process(content, **kwargs)
+      
+    #   print(f'Processed {content['id']}')
+      
+    #   items_to_write = processed if isinstance(processed, list) else [processed]
+      
+    #   for processed_file in items_to_write:
+    #     JsonHelper.write_dict_to_json(processed_file, write_directory)
+    #     print(f'Wrote {content['id']} to {write_directory}\n')
   
   # TODO: prevent duplicate code
   @staticmethod

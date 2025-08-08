@@ -53,7 +53,7 @@ class Chunker:
                       sha256(text[-NUM_CHARS_FOR_SHA:].encode('utf-8')).hexdigest()[-SHA_LENGTH:]])
     
   # TODO: optimize chunker so sentences don't get cut off
-  def chunk_article(self, article: Article) -> list[Chunk]:
+  def chunk_article_from_json(self, article: Article) -> list[Chunk]:
     chunk_metadata = article['metadata']
     
     article_chunks: list[Chunk] = []

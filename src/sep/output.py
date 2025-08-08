@@ -3,7 +3,7 @@ from core.embedding.gemini_embedder import GeminiEmbedder
 from core.prompting.prompt_handler import PromptHandler, LargeLanguageModels
 
 def main():
-  user_query = "Can I trust my senses?"
+  user_query = "To what extent, if any, can a machine be considered conscious?"
   
   gemini_embedder = GeminiEmbedder(output_dim=1536, task_type='RETRIEVAL_QUERY')
   query_vector = gemini_embedder.embed(user_query)

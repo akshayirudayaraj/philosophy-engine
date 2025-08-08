@@ -5,11 +5,11 @@ import os
 from core.storage.pinecone_helper import PineconeDB
 
 def main():  
-  read_directory = os.path.join('data', 'sep', 'embeddings')
+  read_directory = os.path.join('data', 'sep_v2', 'embeddings')
   pinecone = PineconeDB.from_environment()
   
   vectors = JsonHelper.process_files(read_directory=read_directory, fn=PineconeDB.process_and_clean_vector)
-  pinecone.upsert_all_vectors(cast(Generator[Vector], vectors)) # FIXME: type checker confusion about Vector & dict
+  pinecone.upsert_all_vectors(cast(Generator[Vector], vectors), namespace="better_article_data") # FIXME: type checker confusion about Vector & dict
   
   # pc = Pinecone(PINECONE_API_KEY)
   # index = pc.Index(host=PC_INDEX, 
