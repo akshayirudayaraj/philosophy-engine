@@ -1,12 +1,16 @@
 from collections.abc import Generator
 from typing import cast
+
 import os
-from pinecone import Pinecone, Vector
+from pinecone import Pinecone, QueryResponse, Vector
+from dotenv import load_dotenv
 
 from core.file_helper import JsonHelper
 from shared_types import Embedding
 from core.batcher import BatcherFactory
 from core.logging_helper import LoggingMixin
+
+load_dotenv()
 
 class PineconeDB(LoggingMixin):
   MAX_VECTOR_SIZE_BYTES = 40_960
@@ -20,7 +24,7 @@ class PineconeDB(LoggingMixin):
     )
     
     self._batch_size = batch_size
-    self.logger = self.set_up_logging(filename='pinecone.log')
+    self.logger = self.set_up_logging(filename=os.path.join('logs', 'pinecone.log'))
   
   @classmethod
   def from_environment(cls, **kwargs):
@@ -30,6 +34,7 @@ class PineconeDB(LoggingMixin):
       **kwargs,
     )
 
+  # TODO: add logging
   def upsert_all_vectors(self, vectors: Generator[Vector], namespace: str = '__default__'):
     with self._index: # generators are cool!
       batcher = BatcherFactory.from_batch_size(batch_size=self._batch_size)
@@ -56,8 +61,8 @@ class PineconeDB(LoggingMixin):
     
     # v['values'] = cast(list[float], v.pop('embeddings'))
     
-    if v['metadata'].get('revised_date') is None:
-      del v['metadata']['revised_date']
+    if v['metadata'].get('revision_date') is None:
+      del v['metadata']['revision_date']
       
     original_id = v['id']
     cleaned_id = self.remove_non_ascii_fast(v['id'])
@@ -94,7 +99,7 @@ class PineconeDB(LoggingMixin):
   def remove_non_ascii_fast(self, text):
     return text.encode('ascii', 'ignore').decode('ascii')
   
-  def query(self, query_vector: list[float], num_res_to_retrieve: int = 10, namespace: str = '__default__') -> dict:
+  def query(self, query_vector: list[float], num_res_to_retrieve: int = 10, namespace: str = '__default__') -> QueryResponse:
     results = self._index.query(
       namespace=namespace,
       vector=query_vector,
@@ -103,6 +108,9 @@ class PineconeDB(LoggingMixin):
       include_values=True
     )
     
-    return cast(dict, results) # FIXME: manual cast
+    if not isinstance(results, QueryResponse):
+      raise Exception("retrieved results are not of type QueryResponse from Pinecone")
+    
+    return results # FIXME: manual cast
 
 # TODO: will shift architecture a bit to a DatabaseFactory class if I get MySQL/SQLite or Neo4j involved  

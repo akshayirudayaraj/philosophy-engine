@@ -20,13 +20,14 @@ class Prompt(TypedDict):
   
 class PromptHandlerFactory:
   @staticmethod
-  def create_prompt_handler(model_type: LargeLanguageModels, max_response_words: int = 5000):
-    if model_type is LargeLanguageModels.CLAUDE_HAIKU_3_5 or LargeLanguageModels.CLAUDE_SONNET_4:
-      return AnthropicPromptHandler(model_type=model_type, max_response_words=max_response_words)
-    elif model_type is LargeLanguageModels.GPT_5 or LargeLanguageModels.O3:
-      return OpenAiPromptHandler(model_type=model_type, max_response_words=max_response_words)
-    else:
-      raise ModelSelectionError()
+  def create_prompt_handler(model_type: LargeLanguageModels, max_response_words: int):
+    match model_type:
+      case LargeLanguageModels.CLAUDE_HAIKU_3_5 | LargeLanguageModels.CLAUDE_SONNET_4:
+        return AnthropicPromptHandler(model_type=model_type, max_response_words=max_response_words)
+      case LargeLanguageModels.GPT_5 | LargeLanguageModels.O3:
+        return OpenAiPromptHandler(model_type=model_type, max_response_words=max_response_words)
+      case _:
+        raise ModelSelectionException()
   
 class _PromptHandler(ABC):
   WORDS_TO_TOKENS_APPROX = 1.3
@@ -40,7 +41,7 @@ class _PromptHandler(ABC):
     pass
     
   def get_prompt_context_from_vectors(self, results: dict) -> list[dict]:
-    contextual_info = [self.get_text_from_vector(match) for match in results['matches']]
+    contextual_info = [self.get_text_from_vector(match) for match in results]
 
     return contextual_info
 
@@ -49,11 +50,11 @@ class _PromptHandler(ABC):
     link = match['metadata']['link']
     
     retrieval_title = match['metadata']['title']
-    retrieval_headers = match['headers']
+    retrieval_headers = match['metadata']['headers']
     
-    internal_json_title = "sep-" + retrieval_title.lower() # .replace(' ', '-').replace('/', '-')
+    internal_json_title = "sep-" + retrieval_title.lower().replace(' ', '-').replace('/', '-')
     
-    article = JsonHelper.load_article(os.path.join('data', 'sep', 'articles', internal_json_title + '.json'))
+    article = JsonHelper.load_article(os.path.join('data', 'sep_v2', 'articles', internal_json_title + '.json'))
     
     content = self.find_header_text(article, retrieval_headers)
     
@@ -82,7 +83,7 @@ class _PromptHandler(ABC):
       'text': article['metadata']['intro'],
     }
   
-  def construct_prompt(self, user_query: str, results: dict) -> Prompt:
+  def construct_prompt(self, user_query: str, results: dict) -> Prompt: # results are of type ScoredPineconeRecord
     system_prompt = """
     You are a scholar of philosophy and ethics. Your mission is to help young philosopers and ethicists
     think about very hard, nuanced questions. Because you are wise, you offer many potential answers to questions
@@ -230,6 +231,7 @@ class AnthropicPromptHandler(_PromptHandler):
 
     self.write_to_output_file(response.content[0].text)
     
+# TODO: set up flex api (better pricing, higher latency)
 class OpenAiPromptHandler(_PromptHandler):
   def __init__(self, model_type: LargeLanguageModels, max_response_words: int):
     super().__init__(model_type, max_response_words)
@@ -260,6 +262,7 @@ class OpenAiPromptHandler(_PromptHandler):
 class OutputException(Exception):
   pass
 
-class ModelSelectionError(Exception):
-  print("Something's gone wrong with generating the prompt handlder based on the model")
+class ModelSelectionException(Exception):
+  def __init__(self):
+    print("Something's gone wrong with generating the prompt handler based on the model")
   pass
