@@ -25,7 +25,7 @@ class _Batcher(ABC, LoggingMixin):
   """
   
   def __init__(self):
-    self.logger = self.set_up_logging(filename="batch.log")
+    self.logger = self.set_up_logging(filename=os.path.join('logs', "batch.log"))
   
   @abstractmethod
   def get_batches(self, items: Generator[dict]) -> Generator[list[dict]]:
@@ -44,11 +44,11 @@ class _Batcher(ABC, LoggingMixin):
       start = time.time()
       num_chunks_in_batch = len(batch)
       
-      with ThreadPoolExecutor(max_workers=num_chunks_in_batch) as executor:
+      with ThreadPoolExecutor(max_workers=num_chunks_in_batch) as tpe:
         futures = [
-          (executor.submit(
+          (tpe.submit(
             fn,
-            chunk,
+            data=chunk,
             **kwargs
           ))
         for chunk in batch]
