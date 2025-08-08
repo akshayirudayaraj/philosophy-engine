@@ -94,9 +94,9 @@ class PineconeDB(LoggingMixin):
   def remove_non_ascii_fast(self, text):
     return text.encode('ascii', 'ignore').decode('ascii')
   
-  def query(self, query_vector: list[float], num_res_to_retrieve: int = 10) -> dict:
+  def query(self, query_vector: list[float], num_res_to_retrieve: int = 10, namespace: str = '__default__') -> dict:
     results = self._index.query(
-      namespace='__default__',
+      namespace=namespace,
       vector=query_vector,
       top_k=num_res_to_retrieve,
       include_metadata=True,

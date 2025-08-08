@@ -1,57 +1,43 @@
+from abc import ABC, abstractmethod
 from enum import Enum
 import os
 from typing import TypedDict
 from anthropic import Anthropic
+from openai import OpenAI
 
 from core.file_helper import MdHelper, JsonHelper
 
 class LargeLanguageModels(Enum):
   CLAUDE_HAIKU_3_5 = "claude-3-5-haiku-latest"
   CLAUDE_SONNET_4 = "claude-sonnet-4-latest"
+  GPT_5 = "gpt-5"
+  O3 = "o3"
   
 class Prompt(TypedDict):
   system: str
   user: str
   thinking: str
-
-class PromptHandler:
-  WORDS_TO_TOKENS_APPROX = 1.3
   
-  # TODO: eventually abstract into factory? once gpt-x, etc. are added
-  def __init__(self, model_type: LargeLanguageModels, max_response_words: int = 5000):
+class PromptHandlerFactory:
+  @staticmethod
+  def create_prompt_handler(model_type: LargeLanguageModels, max_response_words: int = 5000):
+    if model_type is LargeLanguageModels.CLAUDE_HAIKU_3_5 or LargeLanguageModels.CLAUDE_SONNET_4:
+      return AnthropicPromptHandler(model_type=model_type, max_response_words=max_response_words)
+    elif model_type is LargeLanguageModels.GPT_5 or LargeLanguageModels.O3:
+      return OpenAiPromptHandler(model_type=model_type, max_response_words=max_response_words)
+    else:
+      raise ModelSelectionError()
+  
+class _PromptHandler(ABC):
+  WORDS_TO_TOKENS_APPROX = 1.3
+
+  def __init__(self, model_type: LargeLanguageModels, max_response_words: int):
     self.model_type = model_type
     self.max_tokens = int(max_response_words * self.WORDS_TO_TOKENS_APPROX)
     
-    if model_type is LargeLanguageModels.CLAUDE_HAIKU_3_5 or LargeLanguageModels.CLAUDE_SONNET_4:
-      self._client = Anthropic()
-      
+  @abstractmethod
   def prompt_model(self, prompt: Prompt) -> None:
-    response = self._client.messages.create(
-      model=self.model_type.value,
-      max_tokens=self.max_tokens,
-      # thinking={
-      #   'type': 'enabled',
-      #   'budget_tokens': THINKING_TOKEN_BUDGET,
-      # },
-      system=[
-        {
-          'type': 'text',
-          'text': prompt['system'],
-          'cache_control': {'type': 'ephemeral'} # min cacheable prompt length: 1024 tokens
-        }
-      ],
-      messages=[
-        {
-          'role': 'user',
-          'content': prompt['user']
-        }
-      ],
-    )
-    
-    if response.content[0].type != 'text':
-      raise OutputException("the model output is not text for some strange reason")
-    
-    MdHelper.write_to_md('claude_output', response.content[0].text)
+    pass
     
   def get_prompt_context_from_vectors(self, results: dict) -> list[dict]:
     contextual_info = [self.get_text_from_vector(match) for match in results['matches']]
@@ -207,6 +193,73 @@ class PromptHandler:
       'user': user_prompt,
       'thinking': thinking_prompt
     }
+  
+  def write_to_output_file(self, response: str) -> None:
+    MdHelper.write_to_md('model_output', response)
     
+class AnthropicPromptHandler(_PromptHandler):
+  def __init__(self, model_type: LargeLanguageModels, max_response_words: int):
+    super().__init__(model_type, max_response_words)
+    self._client = Anthropic()
+  
+  def prompt_model(self, prompt: Prompt) -> None:
+    response = self._client.messages.create(
+      model=self.model_type.value,
+      max_tokens=self.max_tokens,
+      # thinking={
+      #   'type': 'enabled',
+      #   'budget_tokens': THINKING_TOKEN_BUDGET,
+      # },
+      system=[
+        {
+          'type': 'text',
+          'text': prompt['system'],
+          'cache_control': {'type': 'ephemeral'} # min cacheable prompt length: 1024 tokens
+        }
+      ],
+      messages=[
+        {
+          'role': 'user',
+          'content': prompt['user']
+        }
+      ],
+    )
+      
+    if response.content[0].type != 'text':
+      raise OutputException("the model output is not text for some strange reason")
+
+    self.write_to_output_file(response.content[0].text)
+    
+class OpenAiPromptHandler(_PromptHandler):
+  def __init__(self, model_type: LargeLanguageModels, max_response_words: int):
+    super().__init__(model_type, max_response_words)
+    self._client = OpenAI()
+  
+  def prompt_model(self, prompt: Prompt) -> None:
+    if self.model_type.value[0].lower() == 'o': # reasoning series
+      response = response = self._client.responses.create(
+        model=self.model_type.value,
+        max_output_tokens=self.max_tokens,
+        instructions=prompt['system'],
+        reasoning={
+          'effort': 'medium',
+          'summary': 'concise',
+        },
+        input=prompt['user']
+      )
+    else:
+      response = self._client.responses.create(
+        model=self.model_type.value,
+        max_output_tokens=self.max_tokens,
+        instructions=prompt['system'],
+        input=prompt['user']
+      )
+    
+    self.write_to_output_file(response.output_text)
+  
 class OutputException(Exception):
+  pass
+
+class ModelSelectionError(Exception):
+  print("Something's gone wrong with generating the prompt handlder based on the model")
   pass
