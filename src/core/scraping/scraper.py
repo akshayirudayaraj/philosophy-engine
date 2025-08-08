@@ -1,7 +1,9 @@
 from abc import ABC, abstractmethod
 from collections.abc import Generator
+
 import requests
 from bs4 import BeautifulSoup, Tag
+from concurrent.futures import ThreadPoolExecutor
 
 from shared_types import Article
 
@@ -53,20 +55,15 @@ class _BaseScraper(ABC, SoupScraper):
     print(f'scraping {link}')
     pass
   
-  def scrape_articles(self) -> Generator[Article]:
+  def scrape_articles(self, max_workers: int = 10) -> Generator[Article]:
     links = self.extract_links()
-    for link in links:
-      try:
-        yield self.scrape_article(link)
-      except SkipIteration:
-        pass
-  
-  
-  # def scrape_and_store_json(self, base_write_directory: str) -> None:
-  #   articles = self.scrape_articles()
-  #   for idx, article in enumerate(articles, 1):
-  #     JsonHelper.write_dict_to_json(dict=article, filepath=base_write_directory)
-  #     print(f'Wrote {article} to {base_write_directory}, #{idx}')
+    
+    with ThreadPoolExecutor(max_workers=max_workers) as tpe:
+      futures = [tpe.submit(self.scrape_article, link) for link in links]
       
-  # def scrape_and_store_sql(self, db) -> None:
+      for future in futures:
+        try:
+          yield future.result()
+        except SkipIteration:
+          pass
     
