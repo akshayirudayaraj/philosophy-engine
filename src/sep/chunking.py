@@ -8,9 +8,6 @@ from core.storage.sqlite_helper import SqliteHelper
 from core.embedding.chunker import Chunker
 import os
 
-# any potential consequences of passing in a title and empty string to the embedding model
-# could that meaningfully through things off? can probably just do a little check before embedding
-
 def main():
   TOKENIZER_MODEL_PATH = os.path.join('src', 'core', 'embedding', 'tokenizing_models', 'gemma_tokenizer.model')
   TOKEN_LIMIT_PER_STRING = 2048
@@ -30,21 +27,6 @@ def main():
     process=cast(Callable[..., Mapping[str, Any]], chunker.chunk_article_from_json), # dodgy cast solution but not sure how to get around this
                                                                           # Chunk is a basically a Mapping (immutable dict) at runtime
   )
-  
-  # for idx, file in enumerate(os.listdir(base_read_filepath), 1):
-  #   print("Reading " + file)
-    
-  #   read_filepath = os.path.join(base_read_filepath, file)
-  #   article = JsonHelper.load_article(read_filepath)
-    
-  #   article_chunks = chunker.chunk_article(article, tokenizer)
-
-  #   for chunk in article_chunks:
-  #     write_filepath = os.path.join(base_write_filepath, chunk['id'].replace('/', "-"))
-  #     JsonHelper.write_dict_to_json(cast(dict, chunk), write_filepath)
-    
-  #   print("Wrote " + file)
-  #   print(f'{idx}/1840') # 1840 and not 1852 because 12 SEP entries have been retired
 
 if __name__ == '__main__':
   main()

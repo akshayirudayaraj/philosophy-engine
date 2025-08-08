@@ -48,8 +48,8 @@ class Chunker:
     NUM_CHARS_FOR_SHA = 20
     SHA_LENGTH = 10
     
-    return "-".join([article['title'].lower().replace(" ", "-"),
-                      section['header'][-1].lower().replace(" ", "-"),
+    return "-".join([article['id'],
+                      section['header'][-1].lower().replace(" ", "-").replace("/", "&"),
                       sha256(text[-NUM_CHARS_FOR_SHA:].encode('utf-8')).hexdigest()[-SHA_LENGTH:]])
     
   # TODO: optimize chunker so sentences don't get cut off
