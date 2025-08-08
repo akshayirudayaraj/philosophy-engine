@@ -49,10 +49,17 @@ class JsonHelper:
   # with other helper functions without manual casting
   @staticmethod
   def process_files(read_directory: str, fn: Callable[..., Mapping[str, Any]], **kwargs) -> Generator[Mapping[str, Any]]:
-    for file in os.listdir(read_directory):
-      content = JsonHelper._load_file(os.path.join(read_directory, file))
-      processed = fn(content, **kwargs)
-      yield processed
+    with os.scandir(read_directory) as files:
+      for idx, file in enumerate(files, 1):
+        if file.is_file():
+          print(f'{idx}')
+          
+          content = JsonHelper._load_file(os.path.join(read_directory, file.name))
+          print(f'read {file.name}')
+          
+          processed = fn(content, **kwargs)
+          print(f'processed {file.name}')
+          yield processed
   
   @staticmethod
   def write_dict_to_json(dict: Mapping[str, Any], filepath: str) -> None:
