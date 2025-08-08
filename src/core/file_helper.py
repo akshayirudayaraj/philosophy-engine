@@ -76,25 +76,27 @@ class JsonHelper:
         MalformedJson: no id in the file passed in -- using it for logging purposes  
     """
     
-    for idx, file in enumerate(os.listdir(read_directory), 1):
-      print(f'{idx}')
-      
-      content = JsonHelper.load_file(file, read_directory)
-      
-      print(f'Read {file} from {read_directory}')
-      
-      processed = process(content, **kwargs)
-      
-      print(f'Processed {file}')
-      
-      items_to_write = processed if isinstance(processed, list) else [processed]
-      
-      for processed_file in items_to_write:
-        if 'id' not in processed_file:
-          raise MalformedJson("every JSON object should have some ID associated with it!")
-        
-        JsonHelper.write_dict_to_json(processed_file, os.path.join(write_directory, processed_file['id']))
-        print(f'Wrote {file} to {write_directory}')
+    with os.scandir(read_directory) as files:
+      for idx, file in enumerate(files, 1):
+        if file.is_file():
+          print(f'{idx}')
+          
+          content = JsonHelper.load_file(file.name, read_directory)
+          
+          print(f'Read {file.name} from {read_directory}')
+          
+          processed = process(content, **kwargs)
+          
+          print(f'Processed {file.name}')
+          
+          items_to_write = processed if isinstance(processed, list) else [processed]
+          
+          for processed_file in items_to_write:
+            if 'id' not in processed_file:
+              raise MalformedJson("every JSON object should have some ID associated with it!")
+            
+            JsonHelper.write_dict_to_json(processed_file, os.path.join(write_directory, processed_file['id']))
+            print(f'Wrote {processed_file['id']} to {write_directory}')
         
     # """reads JSONs from a file, performs some process on each JSON, and writes to another filepath\n
     # if the process results in multiple dictionaries being created (list of dict), each one is written to a separate file
@@ -153,7 +155,7 @@ class JsonHelper:
     
     for processed_file in items_to_write:
       JsonHelper.write_dict_to_json(processed_file, os.path.join(write_directory, processed_file['id']))
-      print(f'Wrote {data['id']} to {write_directory}')
+      print(f'Wrote {processed_file['id']} to {write_directory}')
       
   @staticmethod
   def estimate_size(vector: dict):
