@@ -1,7 +1,8 @@
 from abc import ABC, abstractmethod
 from enum import Enum
-import os
 from typing import TypedDict
+
+import os
 from anthropic import Anthropic
 from openai import OpenAI
 
@@ -16,7 +17,6 @@ class LargeLanguageModels(Enum):
 class Prompt(TypedDict):
   system: str
   user: str
-  thinking: str
   
 class PromptHandlerFactory:
   @staticmethod
@@ -42,6 +42,11 @@ class _PromptHandler(ABC):
     
   def get_prompt_context_from_vectors(self, results: dict) -> list[dict]:
     contextual_info = [self.get_text_from_vector(match) for match in results]
+    
+    token_counter = 0
+    for context in contextual_info:
+      token_counter += len(context['text'].split(" ")) * self.WORDS_TO_TOKENS_APPROX 
+    print(f'approx. context tokens {token_counter}')
 
     return contextual_info
 
@@ -85,22 +90,17 @@ class _PromptHandler(ABC):
   
   def construct_prompt(self, user_query: str, results: dict) -> Prompt: # results are of type ScoredPineconeRecord
     system_prompt = """
-    You are a scholar of philosophy and ethics. Your mission is to help young philosopers and ethicists
-    think about very hard, nuanced questions. Because you are wise, you offer many potential answers to questions
-    and spend time in deliberation before reaching a conclusion. You never dismiss questions as merely "difficult" or "unclear" 
-    - instead, you dissect complexity to reveal underlying structures and possibilities for meaningful engagement.
-    
-    Your scholarly approach involves:
-    - Systematic examination of philosophical positions and their implications
-    - Integration of diverse theoretical frameworks and methodological approaches  
-    - Rigorous logical analysis that anticipates and addresses potential objections
-    - Synthesis of ideas that builds toward novel insights while remaining grounded in established scholarship
-    - Intellectual humility that acknowledges limitations while still advancing substantive conclusions
+    You are an AI assistant tasked with writing a comprehensive, academic-style paper on a philosophical or ethical question. 
+    You will be provided with a set of high-quality, peer-reviewed research papers to help you answer the question. 
+    Your goal is to produce a paper that philosophers and researchers might actually engage with and use in their research and to provide a comprehensive survey
+    of perspectives to educate young philosophers.
     """
     
     contextual_info = self.get_prompt_context_from_vectors(results)
     
     user_prompt = f"""
+      First, review the following research papers:
+    
       <context>
       {[
         f"""
@@ -108,97 +108,120 @@ class _PromptHandler(ABC):
         Title: {context['title']}
         Headers: {context['header_tree']}
         Text: {context['text']}
+        Link: {context['link']}
         </article>
         """
         for context in contextual_info
       ]}
       </context>
       
+      Now, consider the following philosophical question:
+      
       <question>{user_query}</question>
       
-      <analytical_framework>
-      Your response must demonstrate advanced philosophical reasoning through the following required components:
+      Your task is to write a comprehensive academic paper addressing this question. Before you begin writing, take some time to analyze the question and plan your approach. Do this work inside <paper_planning> tags in your thinking block:
 
-      1. CONCEPTUAL ANALYSIS: Begin by unpacking key terms and concepts in the question. Identify ambiguities, define crucial terminology, and establish the philosophical stakes involved.
+      1. Analyze the question:
+        - What are the key concepts involved?
+        - What are the potential implications of this question?
+        - How does this question relate to broader philosophical or ethical debates?
 
-      2. THEORETICAL POSITIONING: Map the question within relevant philosophical traditions. Identify which schools of thought, historical figures, or contemporary debates this question intersects with.
+      2. Review the provided research papers:
+        - What are the main arguments presented in each paper?
+        - How do these papers relate to the question at hand?
+        - Are there any conflicting viewpoints among the papers?
+        - Identify and note down key quotes that support main points.
 
-      3. MULTI-PERSPECTIVE EXAMINATION: Present and analyze at least 3-4 distinct philosophical approaches to the question. For each perspective:
-        - Articulate its core claims and underlying assumptions
-        - Examine its strengths and explanatory power
-        - Identify potential weaknesses or limitations
-        - Consider how it might respond to objections
+      3. Outline the paper structure:
+        - Introduction
+        - Conceptual Foundation
+        - Comparative Analysis
+        - Conclusion
 
-      4. CONTEXTUAL INTEGRATION: Weave the provided scholarly sources throughout your analysis. Demonstrate how these texts support, complicate, or extend different philosophical positions. Use direct quotations and specific references to show deep engagement with the material.
+      4. Plan the content for each section:
+        - What key points should be addressed in each section?
+        - What examples or evidence from the research papers can be used to support these points?
+        - How can you ensure a logical flow of ideas throughout the paper?
 
-      5. CRITICAL SYNTHESIS: Develop your own reasoned position by:
-        - Identifying points of convergence and tension between different approaches
-        - Constructing novel arguments that build on existing scholarship
-        - Addressing the strongest counterarguments to your position
-        - Acknowledging areas where reasonable disagreement persists
+      5. Consider potential challenges:
+        - What are the main counterarguments to the positions you'll present?
+        - How can you address these counterarguments effectively?
+        - Plan how to incorporate these counterarguments and rebuttals into your paper.
 
-      6. PHILOSOPHICAL IMPLICATIONS: Explore what your analysis reveals about broader questions in philosophy and ethics. Consider how your conclusions might apply to related problems or inform practical decision-making.
-      </analytical_framework>
+      6. Reflect on clarity and accessibility:
+        - How can you explain complex concepts in simple terms?
+        - What jargon needs to be defined for the reader?
+        - How can you use Markdown formatting to enhance readability?
 
-      <structural_requirements>
-      Organize your essay with clear intellectual progression:
+      7. Prepare for the conclusion:
+        - Based on your analysis, what do you believe is the most accurate answer to the question?
+        - What are the key points that support this conclusion?
+        - How can you address potential weaknesses in your argument?
 
-      - Introduction (300-400 words): Establish the philosophical significance of the question, preview your analytical approach, and outline your thesis
-      - Conceptual Foundation (500-600 words): Provide necessary definitional and contextual groundwork
-      - Comparative Analysis (1500-2000 words): Systematically examine multiple philosophical perspectives
-      - Critical Evaluation (100-200 words): Develop and defend your own position through rigorous argumentation
-      - Synthesis and Implications (100-200 words): Connect the analysis to broader philosophical questions and practical considerations
+      Now, write your academic paper using the following structure:
 
-      Total target length: 2,500-3,400 words
-      </structural_requirements>
+      1. Title: Use the question as the title of your paper.
 
-      <scholarly_standards>
-      - Use only complete sentences - this is an essay
-      - Maintain academic rigor while remaining accessible to intelligent readers
-      - Use precise philosophical terminology with appropriate explanation
-      - Integrate citations naturally into your argumentation (aim for 8-12 substantial references to the provided sources)
-      - Use MLA standard to reference citations - the citations should be at the ends of sentences, with the referenced article's title in parentheses
-      - Demonstrate awareness of philosophical nuance and complexity
-      - Show intellectual courage in defending positions while maintaining appropriate epistemic humility
-      - Avoid hedging language that undermines substantive analysis ("this is complicated," "there are no easy answers")
-      - Instead of claiming difficulty, demonstrate mastery by working through complexity systematically
-      - Every sentence must be meaningful and unique, furthering the discussion in some way
-      </scholarly_standards>
+      2. Introduction (150-400 words):
+        - Explain how answering the question directly affects society.
+        - Provide a one-sentence overview of the paper's structure.
 
-      <reasoning_depth_requirements>
-      Your analysis must include:
-      - At least two layers of objection and response (consider objections to your main arguments, then responses to those objections)
-      - Examination of both theoretical and practical implications of different positions
-      - Consideration of how the question connects to at least 2-3 other major philosophical problems
-      - Discussion of methodological approaches (how different philosophical methods might yield different insights)
-      - Integration of historical development of ideas with contemporary debates
-      </reasoning_depth_requirements>
-      
-      <task>
-      Write an in-depth, well-structured essay addressing the user's question. Use the context provided to structure
-      your argumentation and frequently cite the articles you use in your essay. Be even-keeled and academic, and question
-      your own logic as you draft the essay. Reason thoughtfully, thinking about all possible answers to the question.
-      
-      Provide an overview of how to approach the question and potential answers to it. Be nuanced, careful, and precise
-      as you write. Use the scholarly texts provided as much as possible to outline and justify your arguments. Only use 
-      complete sentences - this is an academic paper.
-      </task>
+      3. Conceptual Foundation (400-600 words):
+        - Explain what each of the key terms mean.
+        - Provide any relevant prerequisite information necessary to understand the question and its potential answers.
+        - Define any jargon used, ensuring accessibility for readers.
+
+      4. Comparative Analysis (1500-2500 words):
+        - Explain different answers to the question.
+        - Present the evidence supporting each of the different answers.
+        - Delineate the key differences in principles that might lead one to favor one answer over another.
+        - Be dynamic in how this section is structured, avoiding formulaic syntax.
+        - Engage the reader with clear and varied writing and diction.
+        - Mention specific philosophers and papers related to each perspective.
+        - Use simple and clear language, avoiding overly long sentences.
+        - Provide detailed reasoning behind every claim.
+
+      5. Conclusion (500 words):
+        - Present what you believe to be the most accurate, rational answer to the question.
+        - If uncertain, state your uncertainties.
+        - If confident in one perspective or a synthesis of perspectives, argue that position while maintaining logical consistency.
+        - Reflect on potential counterarguments to your position.
+        - Clearly distinguish between your own thoughts and those cited from others.
+
+      Throughout your paper:
+
+      - Use Markdown formatting for headers, subheaders, bold or italic text, subscripts, superscripts, special symbols, etc.
+      - Use precise citations with parenthetical citations including the referenced article's title and link.
+        Format the citations for Markdown, e.g., ([title](<link>))
+      - Use the provided sources as evidence for each claim made.
+      - When necessary or relevant, use deductive logic and symbols.
+      - Be detailed and expressive, fully fleshing out each perspective discussed.
+
+      Remember to treat this as a complete, peer-reviewed research paper. Exercise creative freedom in compiling the most extensive, comprehensive answer to the question while adhering to academic standards.
+
+      Your final output should consist only of the academic paper, structured with appropriate headings for each section. Do not include any meta-commentary or notes about the writing process.
+
+      Important reminders based on user feedback:
+      1. Avoid using vague jargon or hyperspecific philosophical language without explanation. If you must use specialized terms, provide clear definitions or link to explanatory articles.
+      2. Make extensive use of Markdown formatting. Use headers (##, ###) for main sections and subsections. Use bold (**text**) or italics (*text*) for emphasis or to highlight key points, rather than leaving fragmented sentences.
+      3. Ensure you write a conclusion that presents and argues for your own perspective on the question, based on the evidence and arguments presented in the paper.
+
+      Your final output should consist only of the academic paper and should not duplicate or rehash any of the work you did in the paper planning section.
     """
     
-    thinking_prompt = """
-    
-    """
+    print(f'total prompt tokens: {(len(system_prompt.split(" ")) + len(user_prompt.split(" "))) * self.WORDS_TO_TOKENS_APPROX}')
     
     return {
       'system': system_prompt,
       'user': user_prompt,
-      'thinking': thinking_prompt
     }
   
   def write_to_output_file(self, response: str) -> None:
     MdHelper.write_to_md('model_output', response)
     
 class AnthropicPromptHandler(_PromptHandler):
+  # THINKING_TOKEN_BUDGET = 2000
+  
   def __init__(self, model_type: LargeLanguageModels, max_response_words: int):
     super().__init__(model_type, max_response_words)
     self._client = Anthropic()
@@ -209,7 +232,7 @@ class AnthropicPromptHandler(_PromptHandler):
       max_tokens=self.max_tokens,
       # thinking={
       #   'type': 'enabled',
-      #   'budget_tokens': THINKING_TOKEN_BUDGET,
+      #   'budget_tokens': self.THINKING_TOKEN_BUDGET,
       # },
       system=[
         {
