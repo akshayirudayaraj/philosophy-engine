@@ -220,34 +220,53 @@ class _PromptHandler(ABC):
     MdHelper.write_to_md('model_output', response)
     
 class AnthropicPromptHandler(_PromptHandler):
-  # THINKING_TOKEN_BUDGET = 2000
+  THINKING_TOKEN_BUDGET = 2000
   
   def __init__(self, model_type: LargeLanguageModels, max_response_words: int):
     super().__init__(model_type, max_response_words)
     self._client = Anthropic()
   
   def prompt_model(self, prompt: Prompt) -> None:
-    response = self._client.messages.create(
-      model=self.model_type.value,
-      max_tokens=self.max_tokens,
-      # thinking={
-      #   'type': 'enabled',
-      #   'budget_tokens': self.THINKING_TOKEN_BUDGET,
-      # },
-      system=[
-        {
-          'type': 'text',
-          'text': prompt['system'],
-          'cache_control': {'type': 'ephemeral'} # min cacheable prompt length: 1024 tokens
-        }
-      ],
-      messages=[
-        {
-          'role': 'user',
-          'content': prompt['user']
-        }
-      ],
-    )
+    if self.model_type is LargeLanguageModels.CLAUDE_SONNET_4: # thinking allowed
+      response = self._client.messages.create(
+        model=self.model_type.value,
+        max_tokens=self.max_tokens,
+        thinking={
+          'type': 'enabled',
+          'budget_tokens': self.THINKING_TOKEN_BUDGET,
+        },
+        system=[
+          {
+            'type': 'text',
+            'text': prompt['system'],
+            'cache_control': {'type': 'ephemeral'} # min cacheable prompt length: 1024 tokens
+          }
+        ],
+        messages=[
+          {
+            'role': 'user',
+            'content': prompt['user']
+          }
+        ],
+      )
+    else: # no thinking
+      response = self._client.messages.create(
+        model=self.model_type.value,
+        max_tokens=self.max_tokens,
+        system=[
+          {
+            'type': 'text',
+            'text': prompt['system'],
+            'cache_control': {'type': 'ephemeral'} # min cacheable prompt length: 1024 tokens
+          }
+        ],
+        messages=[
+          {
+            'role': 'user',
+            'content': prompt['user']
+          }
+        ],
+      )
       
     if response.content[0].type != 'text':
       raise OutputException("the model output is not text for some strange reason")
