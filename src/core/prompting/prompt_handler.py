@@ -20,7 +20,7 @@ class Prompt(TypedDict):
   
 class PromptHandlerFactory:
   @staticmethod
-  def create_prompt_handler(model_type: LargeLanguageModels, max_response_words: int):
+  def create_prompt_handler(model_type: LargeLanguageModels, max_response_words: int | None = None):
     match model_type:
       case LargeLanguageModels.CLAUDE_HAIKU_3_5 | LargeLanguageModels.CLAUDE_SONNET_4:
         return AnthropicPromptHandler(model_type=model_type, max_response_words=max_response_words)
@@ -32,26 +32,28 @@ class PromptHandlerFactory:
 class _PromptHandler(ABC):
   WORDS_TO_TOKENS_APPROX = 1.3
 
-  def __init__(self, model_type: LargeLanguageModels, max_response_words: int):
+  def __init__(self, model_type: LargeLanguageModels, max_response_words: int | None):
     self.model_type = model_type
-    self.max_tokens = int(max_response_words * self.WORDS_TO_TOKENS_APPROX)
+    
+    if max_response_words:
+      self.max_tokens = int(max_response_words * self.WORDS_TO_TOKENS_APPROX)
+    else:
+      self.max_tokens = 100_000 # just some insanely large number even though it'll never get this high
     
   @abstractmethod
   def prompt_model(self, prompt: Prompt) -> None:
     pass
-    
-  def get_prompt_context_from_vectors(self, results: dict) -> list[dict]:
-    contextual_info = [self.get_text_from_vector(match) for match in results]
-    
-    token_counter = 0
-    for context in contextual_info:
-      token_counter += len(context['text'].split(" ")) * self.WORDS_TO_TOKENS_APPROX 
-    print(f'approx. context tokens {token_counter}')
+  
+  # FIXME: maybe this belongs somewhere else
+  def get_matched_docs_from_vector_metadata(self, results: list[dict]) -> list[dict]:
+    contextual_info = [{
+          'original_rank': idx,
+          **self.get_text_from_vector(match),
+    } for idx, match in enumerate(results, 1)]
 
     return contextual_info
 
   def get_text_from_vector(self, match: dict) -> dict:
-    id = match['id']
     link = match['metadata']['link']
     
     retrieval_title = match['metadata']['title']
@@ -62,9 +64,6 @@ class _PromptHandler(ABC):
     article = JsonHelper.load_article(os.path.join('data', 'sep_v2', 'articles', internal_json_title + '.json'))
     
     content = self.find_header_text(article, retrieval_headers)
-    
-    print(f'id: {id}, link: {link}')
-    print(content['text'] + '\n')
     
     return {
       'title': retrieval_title,
@@ -88,7 +87,7 @@ class _PromptHandler(ABC):
       'text': article['metadata']['intro'],
     }
   
-  def construct_prompt(self, user_query: str, results: dict) -> Prompt: # results are of type ScoredPineconeRecord
+  def construct_prompt(self, user_query: str, relevant_sections: list[dict]) -> Prompt: # results are of type ScoredPineconeRecord
     system_prompt = """
     You are an AI assistant tasked with writing a comprehensive, academic-style paper on a philosophical or ethical question. 
     You will be provided with a set of high-quality, peer-reviewed research papers to help you answer the question. 
@@ -96,8 +95,13 @@ class _PromptHandler(ABC):
     of perspectives to educate young philosophers.
     """
     
-    contextual_info = self.get_prompt_context_from_vectors(results)
-    
+    token_counter = 0
+    for context in relevant_sections:
+      token_counter += len(context['text'].split(" ")) * self.WORDS_TO_TOKENS_APPROX
+      print(f'title: {context['title']}, link: {context['link']}, og queried rank: {context['original_rank']}')
+      print(f'{context['text']}\n')
+    print(f'approx. context tokens {token_counter}')
+        
     user_prompt = f"""
       First, review the following research papers:
     
@@ -111,7 +115,7 @@ class _PromptHandler(ABC):
         Link: {context['link']}
         </article>
         """
-        for context in contextual_info
+        for context in relevant_sections
       ]}
       </context>
       
@@ -222,7 +226,7 @@ class _PromptHandler(ABC):
 class AnthropicPromptHandler(_PromptHandler):
   THINKING_TOKEN_BUDGET = 2000
   
-  def __init__(self, model_type: LargeLanguageModels, max_response_words: int):
+  def __init__(self, model_type: LargeLanguageModels, max_response_words: int | None):
     super().__init__(model_type, max_response_words)
     self._client = Anthropic()
   
@@ -275,7 +279,7 @@ class AnthropicPromptHandler(_PromptHandler):
     
 # TODO: set up flex api (better pricing, higher latency)
 class OpenAiPromptHandler(_PromptHandler):
-  def __init__(self, model_type: LargeLanguageModels, max_response_words: int):
+  def __init__(self, model_type: LargeLanguageModels, max_response_words: int | None):
     super().__init__(model_type, max_response_words)
     self._client = OpenAI()
   
