@@ -1,7 +1,9 @@
 from typing import cast, Generator
-from pinecone import Vector
-from core.file_helper import JsonHelper
 import os
+
+from pinecone import Vector
+
+from core.file_helper import JsonHelper
 from core.storage.pinecone_helper import PineconeDB
 
 def main():  

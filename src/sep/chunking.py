@@ -1,12 +1,11 @@
 from collections.abc import Callable, Mapping
-from core.embedding.tokenizer import Tokenizer
-
+import os
 from typing import Any, cast
 
 from core.file_helper import JsonHelper
 from core.storage.sqlite_helper import SqliteHelper
 from core.embedding.chunker import Chunker
-import os
+from core.embedding.tokenizer import Tokenizer
 
 def main():
   TOKENIZER_MODEL_PATH = os.path.join('src', 'core', 'embedding', 'tokenizing_models', 'gemma_tokenizer.model')

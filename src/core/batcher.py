@@ -1,9 +1,10 @@
 from abc import ABC, abstractmethod
 from collections.abc import Callable, Generator
+from typing import cast
+
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import os
 import time
-from typing import cast
 
 from core.file_helper import JsonHelper
 from core.logging_helper import LoggingMixin

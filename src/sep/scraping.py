@@ -1,5 +1,4 @@
 from collections.abc import Generator
-import json
 import os
 import string
 from typing import cast

@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 from collections.abc import Mapping
 from typing import Any, cast
+
 import numpy as np
 
 class DenseEmbedder(ABC):

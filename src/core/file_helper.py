@@ -1,8 +1,9 @@
 import json
 from typing import Any, cast
 from collections.abc import Callable, Generator, Mapping
-from shared_types import Article
 import os
+
+from shared_types import Article
 
 class MalformedJson(Exception):
   pass

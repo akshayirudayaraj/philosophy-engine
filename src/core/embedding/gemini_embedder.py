@@ -2,10 +2,11 @@ import os
 from google import genai
 from google.genai import types, Client
 
+from dotenv import load_dotenv
+
 from core.embedding.embedder import DenseEmbedder
 from shared_types import Chunk, Embedding, VectorMetadata
 
-from dotenv import load_dotenv
 load_dotenv('./.env')
 
 class GeminiEmbedder(DenseEmbedder):
