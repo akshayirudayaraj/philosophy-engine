@@ -6,11 +6,9 @@ build-backend = "setuptools.build_meta"
 name = "philosophy-rag-engine"
 dynamic = ["version"]
 
-dependencies = [
-  
-]
+requires-python = "<=3.12.7"
 
-requires-python = ">= 3.12"
+# macOS: brew install xz
 
 authors = [
   {name = "Akshay Irudayaraj", email = "akshay.irudayaraj@gmail.com"}

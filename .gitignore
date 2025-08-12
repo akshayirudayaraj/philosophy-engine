@@ -3,6 +3,7 @@
 # tmp
 /data
 *.md
+.python-version
 
 # will always keep these
 .env

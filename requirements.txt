@@ -1,0 +1,12 @@
+FlagEmbedding
+anthropic
+openai
+pinecone
+dotenv
+numpy
+google
+google-genai
+cmake==3.31.6
+sentencepiece
+bs4
+pylatexenc
