@@ -1,13 +1,14 @@
 # TODO: move all on-disk JSONs to small sql database (on postgresql)
 
 # tmp
-/data
+**/data/
 *.md
 .python-version
 
 # will always keep these
 .env
 __pycache__/
-/logs
+**/logs
 **.DS_Store
 **.egg-info/
+/node_modules
