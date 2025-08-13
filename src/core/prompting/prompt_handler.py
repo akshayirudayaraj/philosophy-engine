@@ -3,9 +3,10 @@ from enum import Enum
 from typing import TypedDict
 
 import os
-from anthropic import Anthropic
-from openai import OpenAI
+from anthropic import AsyncAnthropic
+from openai import AsyncOpenAI
 
+from api.models import Document
 from core.file_helper import MdHelper, JsonHelper
 
 class LargeLanguageModels(Enum):
@@ -45,11 +46,11 @@ class _PromptHandler(ABC):
     pass
   
   # FIXME: maybe this belongs somewhere else
-  def get_matched_docs_from_vector_metadata(self, results: list[dict]) -> list[dict]:
-    contextual_info = [{
-          'original_rank': idx,
+  def get_matched_docs_from_vector_metadata(self, results: list[dict]) -> list[Document]:
+    contextual_info = [Document(
+          original_rank=idx,
           **self.get_text_from_vector(match),
-    } for idx, match in enumerate(results, 1)]
+    ) for idx, match in enumerate(results, 1)]
 
     return contextual_info
 
@@ -87,7 +88,7 @@ class _PromptHandler(ABC):
       'text': article['metadata']['intro'],
     }
   
-  def construct_prompt(self, user_query: str, relevant_sections: list[dict]) -> Prompt: # results are of type ScoredPineconeRecord
+  def construct_prompt(self, user_query: str, relevant_sections: list[Document]) -> Prompt: # results are of type ScoredPineconeRecord
     system_prompt = """
     You are an AI assistant tasked with writing a comprehensive, academic-style paper on a philosophical or ethical question. 
     You will be provided with a set of high-quality, peer-reviewed research papers to help you answer the question. 
@@ -97,9 +98,9 @@ class _PromptHandler(ABC):
     
     token_counter = 0
     for context in relevant_sections:
-      token_counter += len(context['text'].split(" ")) * self.WORDS_TO_TOKENS_APPROX
-      print(f'title: {context['title']}, link: {context['link']}, og queried rank: {context['original_rank']}')
-      print(f'{context['text']}\n')
+      token_counter += len(context.text.split(" ")) * self.WORDS_TO_TOKENS_APPROX
+      print(f'title: {context.title}, link: {context.link}, og queried rank: {context.original_rank}')
+      print(f'{context.text}\n')
     print(f'approx. context tokens {token_counter}')
         
     user_prompt = f"""
@@ -109,10 +110,10 @@ class _PromptHandler(ABC):
       {[
         f"""
         <article>
-        Title: {context['title']}
-        Headers: {context['header_tree']}
-        Text: {context['text']}
-        Link: {context['link']}
+        Title: {context.title}
+        Headers: {context.header_tree}
+        Text: {context.text}
+        Link: {context.link}
         </article>
         """
         for context in relevant_sections
@@ -228,11 +229,11 @@ class AnthropicPromptHandler(_PromptHandler):
   
   def __init__(self, model_type: LargeLanguageModels, max_response_words: int | None):
     super().__init__(model_type, max_response_words)
-    self._client = Anthropic()
+    self._client = AsyncAnthropic()
   
-  def prompt_model(self, prompt: Prompt) -> None:
+  async def prompt_model(self, prompt: Prompt) -> str:
     if self.model_type is LargeLanguageModels.CLAUDE_SONNET_4: # thinking allowed
-      response = self._client.messages.create(
+      response = await self._client.messages.create(
         model=self.model_type.value,
         max_tokens=self.max_tokens,
         thinking={
@@ -254,7 +255,7 @@ class AnthropicPromptHandler(_PromptHandler):
         ],
       )
     else: # no thinking
-      response = self._client.messages.create(
+      response = await self._client.messages.create(
         model=self.model_type.value,
         max_tokens=self.max_tokens,
         system=[
@@ -275,17 +276,17 @@ class AnthropicPromptHandler(_PromptHandler):
     if response.content[0].type != 'text':
       raise OutputException("the model output is not text for some strange reason")
 
-    self.write_to_output_file(response.content[0].text)
+    return response.content[0].text
     
 # TODO: set up flex api (better pricing, higher latency)
 class OpenAiPromptHandler(_PromptHandler):
   def __init__(self, model_type: LargeLanguageModels, max_response_words: int | None):
     super().__init__(model_type, max_response_words)
-    self._client = OpenAI()
+    self._client = AsyncOpenAI()
   
-  def prompt_model(self, prompt: Prompt) -> None:
+  async def prompt_model(self, prompt: Prompt) -> str:
     if self.model_type.value[0].lower() == 'o': # reasoning series
-      response = response = self._client.responses.create(
+      response = await self._client.responses.create(
         model=self.model_type.value,
         max_output_tokens=self.max_tokens,
         instructions=prompt['system'],
@@ -296,14 +297,14 @@ class OpenAiPromptHandler(_PromptHandler):
         input=prompt['user']
       )
     else:
-      response = self._client.responses.create(
+      response = await self._client.responses.create(
         model=self.model_type.value,
         max_output_tokens=self.max_tokens,
         instructions=prompt['system'],
         input=prompt['user']
       )
     
-    self.write_to_output_file(response.output_text)
+    return response.output_text
   
 class OutputException(Exception):
   pass

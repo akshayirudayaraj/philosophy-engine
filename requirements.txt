@@ -10,3 +10,5 @@ cmake==3.31.6
 sentencepiece
 bs4
 pylatexenc
+fastapi
+uvicorn
