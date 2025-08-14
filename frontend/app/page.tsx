@@ -1,6 +1,6 @@
 'use client'
 
-import Markdown from 'react-markdown';
+import Markdown, { Components } from 'react-markdown';
 import remarkGfm from "remark-gfm";
 import { useEffect, useState } from 'react';
 
@@ -48,6 +48,85 @@ export default function Home() {
     return () => clearInterval(interval); // cleanup
   }, [loadingState]);
 
+  const testModelOutput = `
+    # heading 1
+    ## heading 2
+    ### heading 3
+    #### heading 4
+    sample paragraph text. sample paragraph text. sample paragraph text. sample paragraph text. sample paragraph text.
+    sample paragraph text. sample paragraph text. sample paragraph text. sample paragraph text. sample paragraph text. 
+    ~~strikethrough~~  
+
+    > Blockquote  
+
+    **strong**  
+    *italics*  
+    ***
+    [Gmail](https://gmail.com)  
+    ***
+    1. ordered list
+    2. ordered list
+    - unordered list
+    - unordered list  
+    
+    | Syntax      | Description |
+    | ----------- | ----------- |
+    | Header      | Title       |
+    | Paragraph   | Text        |
+  `;
+
+  const testRelatedDocs = [
+    {
+      title: "Introduction to React Hooks",
+      header_tree: "Getting Started > React Basics > Hooks",
+      link: "https://reactjs.org/docs/hooks-intro.html",
+      original_rank: 1,
+      text: `sample paragraph text. sample paragraph text. sample paragraph text. sample paragraph text. sample paragraph text.
+        sample paragraph text. sample paragraph text. sample paragraph text. sample paragraph text. sample paragraph text.`,
+    },
+    {
+      title: "Advanced State Management",
+      header_tree: "Advanced Topics > State > Management Patterns",
+      link: "https://reactjs.org/docs/state-management.html",
+      original_rank: 2,
+      text: `sample text`,
+    }
+  ]
+
+  // TODO: move into separate MD Renderer component
+  const markdownComponents: Components = {
+    // headers use global styles
+    h1: ({ ...props }) => <h1 {...props} />,
+    h2: ({ ...props }) => <h2 {...props} />,
+    h3: ({ ...props }) => <h3 {...props} />,
+    h4: ({ ...props }) => <h4 {...props} />,
+    h5: ({ ...props }) => <h5 {...props} />,
+    h6: ({ ...props }) => <h6 {...props} />,
+    
+    // Text elements use global styles
+    p: ({ ...props }) => <p {...props} />,
+    ul: ({ ...props }) => <ul {...props} />,
+    ol: ({ ...props }) => <ol {...props} />,
+    li: ({ ...props }) => <li {...props} />,
+    blockquote: ({ ...props }) => <blockquote {...props} />,
+    pre: ({ ...props }) => <pre {...props} />,
+    a: ({ ...props }) => <a {...props} />,
+    strong: ({ ...props }) => <strong {...props} />,
+    em: ({ ...props }) => <em {...props} />,
+    hr: ({ ...props }) => <hr {...props} />,
+    
+    // table wrapper for responsive scrolling
+    table: ({ ...props }) => (
+      <div className="overflow-x-auto">
+        <table {...props} />
+      </div>
+    ),
+    
+    // table cells use global styles
+    th: ({ ...props }) => <th {...props} />,
+    td: ({ ...props }) => <td {...props} />,
+  }
+
   return (
     <div className="container mx-auto px-2">
       <div className="flex justify-center pt-4">
@@ -82,10 +161,7 @@ export default function Home() {
       {modelOutput && 
         <>
           <Markdown
-						components={{
-							a: ({ ...props }) => <a className="text-link" {...props} />,
-							p: ({ ...props }) => <p className="pl-5 indent-8" {...props} />,
-						}}
+						components={markdownComponents}
 						remarkPlugins={[remarkGfm]}
 					>
             {modelOutput}
@@ -94,21 +170,22 @@ export default function Home() {
       }
 
       {relatedDocs.length > 0 && (
-        <>
+        <> 
           <br/>
+          <hr className="border-gray-300"/>
           <br/>
-          <p>retrieved docs: </p>
-          <br/>
+          <h1>Sources</h1>
           {relatedDocs.map((doc: any, index) => ( // [temp] docs is any - FIXME: should enforce type checking
             <div key={index}>
-              <p>title: {doc.title}, link: {doc.link}</p>
-              <p>headers: {doc.header_tree}</p>
-              <p>original pinecone rank (based on dense embedding sim score): {doc.original_rank}</p>
+              <h2>
+                <a href={doc.link}>
+                  {doc.title}
+                </a>
+                </h2>
+              <h3>headers: {doc.header_tree}</h3>
+              <h3>original pinecone rank (based on dense embedding sim score): {doc.original_rank}</h3>
               <Markdown
-                components={{
-                  a: ({ ...props }) => <a className="text-link" {...props} />,
-                  p: ({ ...props }) => <p className="pl-5 indent-8" {...props} />,
-                }}
+                components={markdownComponents}
                 remarkPlugins={[remarkGfm]}
               >
                 {doc.text}

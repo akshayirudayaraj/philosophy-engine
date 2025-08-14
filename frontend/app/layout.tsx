@@ -3,7 +3,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "philosophy rag engine",
-  description: "rag for clear, academic philosophy surveys",
+  description: "rag for clear, academic philosophical essays",
 };
 
 export default function RootLayout({
