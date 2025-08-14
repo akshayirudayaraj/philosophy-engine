@@ -23,4 +23,11 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+  @apply font-serif
+}
+
+@layer utilities {
+  .text-link {
+    @apply text-blue-600 underline hover:text-blue-700
+  }
 }

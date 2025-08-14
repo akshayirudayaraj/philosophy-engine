@@ -6,7 +6,7 @@ from output import get_model_output_from_query
 
 app = FastAPI(title="phil rag api")
 
-app.add_middleware(
+app.add_middleware( # TODO: change before going public
     CORSMiddleware,
     allow_origins=["http://localhost:3000"],
     allow_credentials=True,
