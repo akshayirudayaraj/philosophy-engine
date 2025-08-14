@@ -19,6 +19,7 @@ class Prompt(TypedDict):
   system: str
   user: str
   
+# TODO: add gemini and grok
 class PromptHandlerFactory:
   @staticmethod
   def create_prompt_handler(model_type: LargeLanguageModels, max_response_words: int | None = None):
@@ -96,12 +97,20 @@ class _PromptHandler(ABC):
     of perspectives to educate young philosophers.
     """
     
+    # TODO: use actual tokenizer
     token_counter = 0
     for context in relevant_sections:
-      token_counter += len(context.text.split(" ")) * self.WORDS_TO_TOKENS_APPROX
+      token_counter += len(context.text.split(" ")) * self.WORDS_TO_TOKENS_APPROX # TODO: move to helper
       print(f'title: {context.title}, link: {context.link}, og queried rank: {context.original_rank}')
       print(f'{context.text}\n')
     print(f'approx. context tokens {token_counter}')
+    
+    # FIXME: change behavior based on model, store model TPM in the enum
+    MAX_CONTEXT_TOKENS = 27_000 # rest of the prompt is around 3k (TODO: get actual number), GPT-5 has a TPM limit of 30k (for me bc Tier 1)
+    while (token_counter > MAX_CONTEXT_TOKENS):
+      last_section_tokens = len(relevant_sections[-1].text.split(" ")) * self.WORDS_TO_TOKENS_APPROX
+      relevant_sections = relevant_sections[:-1]
+      token_counter -= last_section_tokens
         
     user_prompt = f"""
       First, review the following research papers:
