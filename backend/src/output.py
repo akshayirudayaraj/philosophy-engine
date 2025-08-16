@@ -1,3 +1,5 @@
+from typing import cast
+
 from FlagEmbedding import FlagReranker
 
 from core.storage.pinecone_helper import PineconeDB
@@ -18,17 +20,26 @@ async def get_model_output_from_query(user_query: str) -> tuple[list[Document], 
   prompt_handler = PromptHandlerFactory.create_prompt_handler(LargeLanguageModels.GPT_5)
   
   top_k_docs = prompt_handler.get_matched_docs_from_vector_metadata(top_k_vectors)
-  reranker = FlagReranker('BAAI/bge-reranker-v2-m3')
-  cross_encoder_scores = [{
-    'score': reranker.compute_score((user_query, doc.text), normalize=True), # TODO: add async support
-    'doc': doc, # includes metadata
-  } for doc in top_k_docs]
-  
-  sorted_cross_encoder_scores = sorted(cross_encoder_scores, key=lambda rank: rank['score'])
+  reranked_top_k_docs = rerank(top_k_docs, user_query)
   
   num_sections_for_context = 12
-  docs_for_context = [rank['doc'] for rank in sorted_cross_encoder_scores[:num_sections_for_context]]
+  docs_for_context = reranked_top_k_docs[:num_sections_for_context]
   prompt = prompt_handler.construct_prompt(user_query, docs_for_context)
   model_output = await prompt_handler.prompt_model(prompt)
   
   return docs_for_context, model_output
+
+def rerank(docs: list[Document], user_query: str) -> list[Document]:
+  reranker = FlagReranker('BAAI/bge-reranker-v2-m3', use_fp16=True)
+  top_k_docs_and_query = [(user_query, doc.text) for doc in docs]
+  cross_encoder_scores = reranker.compute_score([*top_k_docs_and_query], normalize=True) # TODO: add async support
+  
+  cross_encoder_scores_and_docs = [{
+    'score': score,
+    'doc': doc,
+  } for score, doc in zip(cast(list, cross_encoder_scores), docs)]
+  
+  reranked_cross_encoder_scores_and_docs = sorted(cross_encoder_scores_and_docs, key=lambda rank: rank['score'])
+  reranked_docs = [rank['doc'] for rank in reranked_cross_encoder_scores_and_docs]
+  
+  return reranked_docs

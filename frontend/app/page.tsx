@@ -152,7 +152,7 @@ export default function Home() {
       {loadingState &&
         <div className="pt-10 text-center">
           <p>Thinking{".".repeat(dots)}</p>
-          <p>Est time: ~3-5 minutes</p> {/* TODO: actually calculate somehow or do rough time est. */}
+          <p>Est. time: ~3-5 minutes</p> {/* TODO: actually calculate somehow or do rough time est. */}
         </div>
       }
 
