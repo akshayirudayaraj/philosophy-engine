@@ -19,7 +19,9 @@ async def get_model_output_from_query(user_query: str) -> tuple[list[Document], 
   
   prompt_handler = PromptHandlerFactory.create_prompt_handler(LargeLanguageModels.GPT_5)
   
-  top_k_docs = prompt_handler.get_matched_docs_from_vector_metadata(top_k_vectors)
+  non_unique_top_k_docs = prompt_handler.get_matched_docs_from_vector_metadata(top_k_vectors)
+  top_k_docs = list(set(non_unique_top_k_docs))
+  
   reranked_top_k_docs = rerank(top_k_docs, user_query)
   
   num_sections_for_context = 12
