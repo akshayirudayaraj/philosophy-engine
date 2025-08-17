@@ -96,21 +96,6 @@ class _PromptHandler(ABC):
     Your goal is to produce a paper that philosophers and researchers might actually engage with and use in their research and to provide a comprehensive survey
     of perspectives to educate young philosophers.
     """
-    
-    # TODO: use actual tokenizer
-    token_counter = 0
-    for context in relevant_sections:
-      token_counter += len(context.text.split(" ")) * self.WORDS_TO_TOKENS_APPROX # TODO: move to helper
-      print(f'title: {context.title}, link: {context.link}, og queried rank: {context.original_rank}')
-      print(f'{context.text}\n')
-    print(f'approx. context tokens {token_counter}')
-    
-    # FIXME: change behavior based on model, store model TPM in the enum
-    MAX_CONTEXT_TOKENS = 27_000 # rest of the prompt is around 3k (TODO: get actual number), GPT-5 has a TPM limit of 30k (for me bc Tier 1)
-    while (token_counter > MAX_CONTEXT_TOKENS):
-      last_section_tokens = len(relevant_sections[-1].text.split(" ")) * self.WORDS_TO_TOKENS_APPROX
-      relevant_sections = relevant_sections[:-1]
-      token_counter -= last_section_tokens
         
     user_prompt = f"""
       First, review the following research papers:
@@ -199,6 +184,7 @@ class _PromptHandler(ABC):
         - Present what you believe to be the most accurate, rational answer to the question.
         - If uncertain, state your uncertainties.
         - If confident in one perspective or a synthesis of perspectives, argue that position while maintaining logical consistency.
+        - Do not simply give the average position of the surveyed positions - think deeply and answer with what you believe is the most correct answer to the question
         - Reflect on potential counterarguments to your position.
         - Clearly distinguish between your own thoughts and those cited from others.
 

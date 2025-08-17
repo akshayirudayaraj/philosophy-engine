@@ -8,14 +8,14 @@ from core.embedding.chunker import Chunker
 from core.embedding.tokenizer import Tokenizer
 
 def main():
-  TOKENIZER_MODEL_PATH = os.path.join('src', 'core', 'embedding', 'tokenizing_models', 'gemma_tokenizer.model')
+  TOKENIZER_MODEL_PATH = os.environ.get('TOKENIZER_MODEL_PATH')
   TOKEN_LIMIT_PER_STRING = 2048
   
   base_filepath = os.path.join(os.getcwd(), 'data', 'sep_v2')
   base_read_filepath = os.path.join(base_filepath, 'articles')
   base_write_filepath = os.path.join(base_filepath, 'chunked_articles')
   
-  tokenizer = Tokenizer(TOKENIZER_MODEL_PATH)
+  tokenizer = Tokenizer(str(TOKENIZER_MODEL_PATH))
   chunker = Chunker(token_limit_per_chunk=TOKEN_LIMIT_PER_STRING, tokenizer=tokenizer)
   
   # sqlite_helper = SqliteHelper('sep.db')

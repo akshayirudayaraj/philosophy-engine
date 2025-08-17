@@ -1,10 +1,12 @@
 from typing import cast
 
 from FlagEmbedding import FlagReranker
+import os
 
 from core.storage.pinecone_helper import PineconeDB
 from core.embedding.gemini_embedder import GeminiEmbedder
 from core.prompting.prompt_handler import PromptHandlerFactory, LargeLanguageModels
+from core.embedding.tokenizer import Tokenizer
 from api.models import Document
 
 async def get_model_output_from_query(user_query: str) -> tuple[list[Document], str]:  
@@ -24,8 +26,17 @@ async def get_model_output_from_query(user_query: str) -> tuple[list[Document], 
   
   reranked_top_k_docs = rerank(top_k_docs, user_query)
   
-  num_sections_for_context = 12
+  print("done reranking")
+  
+  MAX_TOKENS = 30_000 # GPT-5 has a TPM limit of 30k (for me bc Tier 1); TODO: make dynamic for other models
+  PROMPT_TOKENS = 2_000 # TODO: get actual number
+  BUFFER_TOKENS = 500
+  MAX_CONTEXT_TOKENS = MAX_TOKENS - (PROMPT_TOKENS + BUFFER_TOKENS)
+  num_sections_for_context = get_sections_to_keep(reranked_top_k_docs, MAX_CONTEXT_TOKENS)
+  print(f"number of sources: {num_sections_for_context+1}")
+  
   docs_for_context = reranked_top_k_docs[:num_sections_for_context]
+  
   prompt = prompt_handler.construct_prompt(user_query, docs_for_context)
   model_output = await prompt_handler.prompt_model(prompt)
   
@@ -45,3 +56,19 @@ def rerank(docs: list[Document], user_query: str) -> list[Document]:
   reranked_docs = [rank['doc'] for rank in reranked_cross_encoder_scores_and_docs]
   
   return reranked_docs
+
+def get_sections_to_keep(docs: list[Document], context_window_tokens: int) -> int:
+  TOKENIZER_MODEL_PATH = os.getenv('TOKENIZER_MODEL_PATH')
+  print(TOKENIZER_MODEL_PATH)
+  tokenizer = Tokenizer(str(TOKENIZER_MODEL_PATH))
+  
+  token_counter = 0
+  num_sections_for_context = 0
+  
+  while (token_counter <= context_window_tokens):
+    token_counter += tokenizer.count_tokens(docs[num_sections_for_context].text)
+    num_sections_for_context += 1
+    
+  num_sections_for_context -= 1 # don't include last document that pushes the counter over the limit
+  
+  return num_sections_for_context
