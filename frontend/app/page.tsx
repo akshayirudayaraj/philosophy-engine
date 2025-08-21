@@ -34,7 +34,7 @@ export default function Home() {
     try {
       console.log(JSON.stringify({ "user_query": userQuery }));
 
-      const response = await fetch('http://127.0.0.1:8000/query', {
+      const response = await fetch('https://philosophy-engine.onrender.com', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ "user_query": userQuery })
@@ -54,6 +54,7 @@ export default function Home() {
     } catch (error) {
       setStatus('error')
       console.log(error);
+      return;
 
     } finally {
       setStatus('result');
@@ -65,10 +66,12 @@ export default function Home() {
     let interval: NodeJS.Timeout;
     if (status === 'submitted') {
       interval = setInterval(() => {
-        setDots(prev => (prev === 3 ? 0 : prev + 1));
+        setDots(function(prev) {
+          return prev === 3 ? 0 : prev + 1
+        });
       }, 500); // every half second
     }
-    return () => clearInterval(interval); // cleanup
+    return () => clearInterval(interval);
   }, [status]);
 
   function renderContent() {
@@ -99,7 +102,7 @@ export default function Home() {
       case 'error':
         return (
           <div className="pt-10 text-center">
-            <p>Sorry, there's been an error. Please contact me at akshay [dot] irudayaraj [at] gmail [dot] com and try again later!</p>
+            <p>Sorry, there has been an error. Please contact me at akshay [dot] irudayaraj [at] gmail [dot] com and try again later!</p>
           </div>
         )
       case 'testing':

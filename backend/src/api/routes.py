@@ -6,9 +6,9 @@ from output import get_model_output_from_query
 
 app = FastAPI(title="phil rag api")
 
-app.add_middleware( # TODO: change before going public
+app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
+    allow_origins=["http://localhost:3000", "http://philosophy-engine-q7xd-8kdjhwfuc-akshayirudayarajs-projects.vercel.app"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
