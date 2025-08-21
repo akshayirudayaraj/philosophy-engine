@@ -34,7 +34,7 @@ export default function Home() {
     try {
       console.log(JSON.stringify({ "user_query": userQuery }));
 
-      const response = await fetch('https://philosophy-engine.onrender.com', {
+      const response = await fetch('https://philosophy-engine.onrender.com/query', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ "user_query": userQuery })
