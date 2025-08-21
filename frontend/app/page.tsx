@@ -1,9 +1,10 @@
 'use client'
 
+import { useEffect, useState } from 'react';
+
 import MarkdownRenderer from './components/markdown_renderer'
 import Documents from './components/documents'
 import QuestionBar from './components/question_bar'
-import { useEffect, useState } from 'react';
 import { DocumentProps } from './components/related_document';
 
 export default function Home() {

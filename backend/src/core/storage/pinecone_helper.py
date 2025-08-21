@@ -112,6 +112,6 @@ class PineconeDB(LoggingMixin):
     if not isinstance(results, QueryResponse):
       raise Exception("retrieved results are not of type QueryResponse from Pinecone")
     
-    return results # FIXME: manual cast
+    return results
 
 # TODO: will shift architecture a bit to a DatabaseFactory class if I get MySQL/SQLite or Neo4j involved  
