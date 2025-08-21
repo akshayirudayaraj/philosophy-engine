@@ -16,5 +16,9 @@ authors = [
 
 description = "rag for philosophy"
 
+[tool.setuptools]
+py-modules = ["output", "shared_types"] # TODO: make it so this doesn't have to be manual
+
 [tool.setuptools.packages.find]
 where = ["src"]
+include = ["*"]

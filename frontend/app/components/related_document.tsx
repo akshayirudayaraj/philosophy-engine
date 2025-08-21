@@ -17,7 +17,7 @@ function RelatedDocument({ link, title, header_tree, original_rank, text }: Docu
         </a>
       </h2>
       <h3>headers: {header_tree}</h3>
-      <h3>original pinecone rank (based on dense embedding sim score): {original_rank}</h3>
+      {/* <h3>original pinecone rank (based on dense embedding sim score): {original_rank}</h3> */}
       <MarkdownRenderer>
         {text}
       </MarkdownRenderer>

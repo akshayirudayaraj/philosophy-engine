@@ -2,7 +2,7 @@ interface QuestionBarProps {
   question: string,
   onQuestionChange: (value: string) => void,
   submitRequest: () => void,
-  submissionAvailable: Boolean,
+  submissionAvailable: boolean,
 }
 
 function QuestionBar({ question, onQuestionChange, submitRequest, submissionAvailable }: QuestionBarProps) {
