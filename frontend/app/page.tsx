@@ -1,18 +1,35 @@
 'use client'
 
-import Markdown, { Components } from 'react-markdown';
-import remarkGfm from "remark-gfm";
+import MarkdownRenderer from './components/markdown_renderer'
+import Documents from './components/documents'
+import QuestionBar from './components/question_bar'
 import { useEffect, useState } from 'react';
+import { DocumentProps } from './components/related_document';
 
 export default function Home() {
-  const [userQuery, setUserQuery] = useState("");
-  const [modelOutput, setModelOutput] = useState("");
-  const [relatedDocs, setRelatedDocs] = useState([]);
-  const [loadingState, setLoadingState] = useState(false);
-  const [dots, setDots] = useState(0);
+  const [userQuery, setUserQuery] = useState<string>("");
+
+  const [modelOutput, setModelOutput] = useState<string>("");
+  const [relatedDocs, setRelatedDocs] = useState<DocumentProps[]>([]);
+
+  const [status, setStatus] = useState<'empty' | 'typing' | 'submitted' | 'result' | 'error' | 'testing'>('empty');
+  const [dots, setDots] = useState<number>(0);
+
+  const submitEnabled = status === 'typing' || status === 'result' || status === 'error'
+
+  function handleQuestionChange(newQuestion: string) {
+    setUserQuery(newQuestion)
+
+    if (newQuestion.length === 0) {
+      setStatus('empty')
+    } else {
+      setStatus('typing')
+    }
+  }
 
   async function queryBackend() {
-    setLoadingState(true);
+    setStatus('submitted')
+
     try {
       console.log(JSON.stringify({ "user_query": userQuery }));
 
@@ -23,57 +40,116 @@ export default function Home() {
       });
 
       if (!response.ok) {
+        setStatus('error')
         console.log(response.statusText);
+        return;
       }
 
       const data = await response.json();
 
       setModelOutput(data.model_output);
       setRelatedDocs(data.related_documents);
+
     } catch (error) {
+      setStatus('error')
       console.log(error);
+
     } finally {
-      setLoadingState(false);
+      setStatus('result');
       setDots(0);
     }
   }
   
-  useEffect(() => { // AI code
+  useEffect(() => {
     let interval: NodeJS.Timeout;
-    if (loadingState) {
+    if (status === 'submitted') {
       interval = setInterval(() => {
         setDots(prev => (prev === 3 ? 0 : prev + 1));
       }, 500); // every half second
     }
     return () => clearInterval(interval); // cleanup
-  }, [loadingState]);
+  }, [status]);
+
+  function renderContent() {
+    switch (status) {
+      case 'empty':
+        return <></>
+      case 'typing':
+        return <></>
+      case 'submitted':
+        return (
+          <div className="pt-10 text-center">
+            <p>Thinking{".".repeat(dots)}</p>
+            <p>Est. time: ~3-5 minutes</p> {/* TODO: actually calculate somehow instead of hard-coding */}
+          </div>
+        )
+      case 'result':
+        return (
+          <>
+            <MarkdownRenderer>
+              {modelOutput}
+            </MarkdownRenderer>
+
+            {relatedDocs.length > 0 && (
+              <Documents documents={relatedDocs}/>
+            )}
+          </>
+        )
+      case 'error':
+        return (
+          <div className="pt-10 text-center">
+            <p>Sorry, there's been an error. Please contact me at akshay [dot] irudayaraj [at] gmail [dot] com and try again later!</p>
+          </div>
+        )
+      case 'testing':
+        return (
+          <>
+            <MarkdownRenderer>{testModelOutput}</MarkdownRenderer>
+            <Documents documents={testRelatedDocs}/>
+          </>
+        )
+    }
+  }
 
   const testModelOutput = `
-    # heading 1
-    ## heading 2
-    ### heading 3
-    #### heading 4
-    sample paragraph text. sample paragraph text. sample paragraph text. sample paragraph text. sample paragraph text.
-    sample paragraph text. sample paragraph text. sample paragraph text. sample paragraph text. sample paragraph text. 
-    ~~strikethrough~~  
+  # heading 1
+  ## heading 2
+  ### heading 3
+  #### heading 4
+  sample paragraph text. sample paragraph text. sample paragraph text. sample paragraph text. sample paragraph text.
+  sample paragraph text. sample paragraph text. sample paragraph text. sample paragraph text. sample paragraph text. 
+  ~~strikethrough~~  
 
-    > Blockquote  
+  > Blockquote  
 
-    **strong**  
-    *italics*  
-    ***
-    [Gmail](https://gmail.com)  
-    ***
-    1. ordered list
-    2. ordered list
-    - unordered list
-    - unordered list  
-    
-    | Syntax      | Description |
-    | ----------- | ----------- |
-    | Header      | Title       |
-    | Paragraph   | Text        |
-  `;
+  **strong**  
+  *italics*  
+  ***
+  [Gmail](https://gmail.com)  
+  ***
+  1. ordered list
+  2. ordered list
+  - unordered list
+  - unordered list  
+  
+  | Syntax      | Description |
+  | ----------- | ----------- |
+  | Header      | Title       |
+  | Paragraph   | Text        |
+
+  graph TD
+    A[Start] --> B{Is it raining?};
+    B -- Yes --> C[Take an umbrella];
+    B -- No --> D[Go outside];
+    C --> E[End];
+    D --> E;
+
+  This sentence uses delimiters to show math inline: $\sqrt{3x-1}+(1+x)^2$
+
+  Lift($$L$$) can be determined by Lift Coefficient ($$C_L$$) like the following equation.
+
+  $$ L = \frac{1}{2} \rho v^2 S C_L $$
+  `; // FIXME: math and mermaid graphs not rendering nicely
 
   const testRelatedDocs = [
     {
@@ -93,108 +169,20 @@ export default function Home() {
     }
   ]
 
-  // TODO: move into separate MD Renderer component
-  const markdownComponents: Components = {
-    // headers use global styles
-    h1: ({ ...props }) => <h1 {...props} />,
-    h2: ({ ...props }) => <h2 {...props} />,
-    h3: ({ ...props }) => <h3 {...props} />,
-    h4: ({ ...props }) => <h4 {...props} />,
-    h5: ({ ...props }) => <h5 {...props} />,
-    h6: ({ ...props }) => <h6 {...props} />,
-    
-    // Text elements use global styles
-    p: ({ ...props }) => <p {...props} />,
-    ul: ({ ...props }) => <ul {...props} />,
-    ol: ({ ...props }) => <ol {...props} />,
-    li: ({ ...props }) => <li {...props} />,
-    blockquote: ({ ...props }) => <blockquote {...props} />,
-    pre: ({ ...props }) => <pre {...props} />,
-    a: ({ ...props }) => <a {...props} />,
-    strong: ({ ...props }) => <strong {...props} />,
-    em: ({ ...props }) => <em {...props} />,
-    hr: ({ ...props }) => <hr {...props} />,
-    
-    // table wrapper for responsive scrolling
-    table: ({ ...props }) => (
-      <div className="overflow-x-auto">
-        <table {...props} />
-      </div>
-    ),
-    
-    // table cells use global styles
-    th: ({ ...props }) => <th {...props} />,
-    td: ({ ...props }) => <td {...props} />,
-  }
-
   return (
     <div className="container mx-auto px-2">
       <div className="flex justify-center pt-4">
-        <label className="">
-          <input
-            name="user_query"
-            value={userQuery}
-            placeholder="What are you curious about?"
-            className="w-150 border border-gray-400 px-0.5 rounded placeholder-gray-400"
-            onChange={(e) => setUserQuery(e.target.value)}
-          />
-          <br/>
-        </label>
-
-        <button 
-          onClick={() => queryBackend()}
-          className="border border-gray-400 px-0.5 rounded cursor-pointer"
-        >
-          Submit
-        </button>
+        <QuestionBar
+          question={userQuery}
+          onQuestionChange={handleQuestionChange}
+          submitRequest={queryBackend}
+          submissionAvailable={submitEnabled}
+        />
       </div>
-
-      {loadingState &&
-        <div className="pt-10 text-center">
-          <p>Thinking{".".repeat(dots)}</p>
-          <p>Est. time: ~3-5 minutes</p> {/* TODO: actually calculate somehow or do rough time est. */}
-        </div>
-      }
 
       <br/>
 
-      {modelOutput && 
-        <>
-          <Markdown
-						components={markdownComponents}
-						remarkPlugins={[remarkGfm]}
-					>
-            {modelOutput}
-					</Markdown>
-        </>
-      }
-
-      {relatedDocs.length > 0 && (
-        <> 
-          <br/>
-          <hr className="border-gray-300"/>
-          <br/>
-          <h1>Sources</h1>
-          {relatedDocs.map((doc: any, index) => ( // [temp] docs is any - FIXME: should enforce type checking
-            <div key={index}>
-              <h2>
-                <a href={doc.link}>
-                  {doc.title}
-                </a>
-                </h2>
-              <h3>headers: {doc.header_tree}</h3>
-              <h3>original pinecone rank (based on dense embedding sim score): {doc.original_rank}</h3>
-              <Markdown
-                components={markdownComponents}
-                remarkPlugins={[remarkGfm]}
-              >
-                {doc.text}
-              </Markdown>
-              <br/>
-            </div>
-          ))}
-        </>
-      )}
+      {renderContent()}
     </div>
   );
 }
