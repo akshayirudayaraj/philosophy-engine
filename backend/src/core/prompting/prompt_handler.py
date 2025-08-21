@@ -1,19 +1,26 @@
 from abc import ABC, abstractmethod
 from enum import Enum
-from typing import TypedDict
+from typing import TypedDict, cast
 
+from FlagEmbedding import FlagReranker
 import os
 from anthropic import AsyncAnthropic
 from openai import AsyncOpenAI
+import tiktoken
 
 from api.models import Document
 from core.file_helper import MdHelper, JsonHelper
 
+class Model:
+  def __init__(self, name: str, max_input_tokens: int | None = None):
+    self.name = name
+    self.max_input_tokens = max_input_tokens
+
 class LargeLanguageModels(Enum):
-  CLAUDE_HAIKU_3_5 = "claude-3-5-haiku-latest"
-  CLAUDE_SONNET_4 = "claude-sonnet-4-latest"
-  GPT_5 = "gpt-5"
-  O3 = "o3"
+  CLAUDE_HAIKU_3_5 = Model("claude-3-5-haiku-latest")
+  CLAUDE_SONNET_4 = Model("claude-sonnet-4-latest")
+  GPT_5 = Model("gpt-5", 30_000) # GPT-5 has a TPM limit of 30k for me bc Tier 1
+  O3 = Model("o3")
   
 class Prompt(TypedDict):
   system: str
@@ -32,15 +39,16 @@ class PromptHandlerFactory:
         raise ModelSelectionException()
   
 class _PromptHandler(ABC):
+  PROMPT_TOKENS = 2_500 # FIXME: don't make hardcoded (used in determining how much context to add)
   WORDS_TO_TOKENS_APPROX = 1.3
 
   def __init__(self, model_type: LargeLanguageModels, max_response_words: int | None):
     self.model_type = model_type
     
     if max_response_words:
-      self.max_tokens = int(max_response_words * self.WORDS_TO_TOKENS_APPROX)
+      self.max_output_tokens = int(max_response_words * self.WORDS_TO_TOKENS_APPROX)
     else:
-      self.max_tokens = 100_000 # just some insanely large number even though it'll never get this high
+      self.max_output_tokens = 100_000 # just some insanely large number even though it'll never get this high
     
   @abstractmethod
   def prompt_model(self, prompt: Prompt) -> None:
@@ -88,6 +96,51 @@ class _PromptHandler(ABC):
       'header_tree': article['title'],
       'text': article['metadata']['intro'],
     }
+    
+  def rerank(self, docs: list[Document], user_query: str) -> list[Document]:
+    reranker = FlagReranker('BAAI/bge-reranker-v2-m3', use_fp16=True)
+    top_k_docs_and_query = [(user_query, doc.text) for doc in docs]
+    cross_encoder_scores = reranker.compute_score([*top_k_docs_and_query], normalize=True) # TODO: add async support
+    
+    cross_encoder_scores_and_docs = [{
+      'score': score,
+      'doc': doc,
+    } for score, doc in zip(cast(list, cross_encoder_scores), docs)]
+    
+    reranked_cross_encoder_scores_and_docs = sorted(cross_encoder_scores_and_docs, key=lambda rank: rank['score'])
+    reranked_docs = [rank['doc'] for rank in reranked_cross_encoder_scores_and_docs]
+    
+    print("done reranking")
+    
+    return reranked_docs
+
+  def get_sections_to_keep(self, docs: list[Document], context_window_tokens: int | None = None) -> int:
+    ABSOLUTE_MAX_CONTEXT_WINDOW = 50_000 # should probably not pass in more context than this - would dilute the model output
+    BUFFER_TOKENS = 500
+    
+    if self.model_type.value.max_input_tokens is not None:
+      context_window_tokens = self.model_type.value.max_input_tokens - self.PROMPT_TOKENS - BUFFER_TOKENS
+    elif context_window_tokens is not None:
+      context_window_tokens = context_window_tokens - self.PROMPT_TOKENS - BUFFER_TOKENS
+    else:
+      context_window_tokens = ABSOLUTE_MAX_CONTEXT_WINDOW
+    
+    encoding_algorithm = tiktoken.get_encoding("o200k_base")
+    
+    token_counter = 0
+    num_sections_for_context = 0
+    
+    for doc in docs:
+      doc_tokens = len(encoding_algorithm.encode(doc.text))
+      
+      if (token_counter + doc_tokens > context_window_tokens):
+        break
+      else:
+        num_sections_for_context += 1
+        token_counter += doc_tokens
+    
+    print(f"tokenizer token count for context: {token_counter}")
+    return num_sections_for_context
   
   def construct_prompt(self, user_query: str, relevant_sections: list[Document]) -> Prompt: # results are of type ScoredPineconeRecord
     system_prompt = """
@@ -210,7 +263,12 @@ class _PromptHandler(ABC):
       Your final output should consist only of the academic paper and should not duplicate or rehash any of the work you did in the paper planning section.
     """
     
-    print(f'total prompt tokens: {(len(system_prompt.split(" ")) + len(user_prompt.split(" "))) * self.WORDS_TO_TOKENS_APPROX}')
+    encoding_algorithm = tiktoken.get_encoding("o200k_base")
+    total_prompt_tokens = len(encoding_algorithm.encode(system_prompt + user_prompt))
+    print(f'total prompt tokens: {total_prompt_tokens}')
+    
+    if (total_prompt_tokens > 30_000): # TODO: don't hardcode, tie to model
+      raise Exception("Too many tokens being passed to model (right now just set up for GPT-5)")
     
     return {
       'system': system_prompt,
@@ -230,8 +288,8 @@ class AnthropicPromptHandler(_PromptHandler):
   async def prompt_model(self, prompt: Prompt) -> str:
     if self.model_type is LargeLanguageModels.CLAUDE_SONNET_4: # thinking allowed
       response = await self._client.messages.create(
-        model=self.model_type.value,
-        max_tokens=self.max_tokens,
+        model=self.model_type.value.name,
+        max_tokens=self.max_output_tokens,
         thinking={
           'type': 'enabled',
           'budget_tokens': self.THINKING_TOKEN_BUDGET,
@@ -252,8 +310,8 @@ class AnthropicPromptHandler(_PromptHandler):
       )
     else: # no thinking
       response = await self._client.messages.create(
-        model=self.model_type.value,
-        max_tokens=self.max_tokens,
+        model=self.model_type.value.name,
+        max_tokens=self.max_output_tokens,
         system=[
           {
             'type': 'text',
@@ -281,10 +339,10 @@ class OpenAiPromptHandler(_PromptHandler):
     self._client = AsyncOpenAI()
   
   async def prompt_model(self, prompt: Prompt) -> str:
-    if self.model_type.value[0].lower() == 'o': # reasoning series
+    if self.model_type.value.name[0].lower() == 'o': # reasoning series
       response = await self._client.responses.create(
-        model=self.model_type.value,
-        max_output_tokens=self.max_tokens,
+        model=self.model_type.value.name,
+        max_output_tokens=self.max_output_tokens,
         instructions=prompt['system'],
         reasoning={
           'effort': 'medium',
@@ -294,8 +352,8 @@ class OpenAiPromptHandler(_PromptHandler):
       )
     else:
       response = await self._client.responses.create(
-        model=self.model_type.value,
-        max_output_tokens=self.max_tokens,
+        model=self.model_type.value.name,
+        max_output_tokens=self.max_output_tokens,
         instructions=prompt['system'],
         input=prompt['user']
       )
