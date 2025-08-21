@@ -8,7 +8,7 @@ app = FastAPI(title="phil rag api")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://philosophy-engine-q7xd-8kdjhwfuc-akshayirudayarajs-projects.vercel.app"],
+    allow_origins=["http://localhost:3000", "https://philosophy-engine.vercel.app"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
