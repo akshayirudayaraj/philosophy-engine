@@ -192,7 +192,8 @@ class _PromptHandler(ABC):
 
       - Use Markdown formatting for headers, subheaders, bold or italic text, subscripts, superscripts, special symbols, etc.
       - Use precise citations with parenthetical citations including the referenced article's title and link.
-        Format the citations for Markdown, e.g., ([title](<link>))
+      - Format the citations for Markdown, e.g., ([title](<link>))
+      - Use tables to help the user better understand convoluted topics, using GitHub Flavored Markdown syntax with pipes (|) and dashes for headers for tables
       - Use the provided sources as evidence for each claim made.
       - When necessary or relevant, use deductive logic and symbols.
       - Be detailed and expressive, fully fleshing out each perspective discussed.
