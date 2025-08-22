@@ -1,7 +1,7 @@
 import os
 from google import genai
 from google.genai import types, Client
-
+from google.oauth2 import service_account
 from dotenv import load_dotenv
 
 from core.embedding.embedder import DenseEmbedder
@@ -17,6 +17,14 @@ class GeminiEmbedder(DenseEmbedder):
   _client: Client
     
   def __init__(self, output_dim: int, task_type: str):
+    if (os.getenv('ENVIRONMENT') == 'production'):
+      service_account_credentials_path = os.getenv('GC_SERVICE_ACCOUNT_CREDENTIALS_FILEPATH')
+    
+    if service_account_credentials_path:
+      sa_credentials = service_account.Credentials.from_service_account_file(service_account_credentials_path)
+    else:
+      sa_credentials = None
+    
     super().__init__(
       model_id=self.EMBEDDING_MODEL_ID,
       output_dim=output_dim,
@@ -25,6 +33,7 @@ class GeminiEmbedder(DenseEmbedder):
         'vertexai': True,
         'project': self.CLOUD_PROJECT_ID,
         'location': self.CLOUD_REGION,
+        'credentials': sa_credentials,
       },
     )
     

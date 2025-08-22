@@ -7,11 +7,11 @@ from output import get_model_output_from_query
 app = FastAPI(title="phil rag api")
 
 app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["http://localhost:3000", "https://philosophy-engine.vercel.app"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+  CORSMiddleware,
+  allow_origins=["http://localhost:3000", "https://philosophy-engine.vercel.app"],
+  allow_credentials=True,
+  allow_methods=["*"],
+  allow_headers=["*"],
 )
 
 @app.post('/query')

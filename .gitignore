@@ -11,3 +11,6 @@ __pycache__/
 **.DS_Store
 **.egg-info/
 /node_modules
+
+# NEVER REMOVE
+gen-lang-client-0098386767-e2821eb74ced.json
