@@ -20,6 +20,7 @@ class LargeLanguageModels(Enum):
   CLAUDE_HAIKU_3_5 = Model("claude-3-5-haiku-latest")
   CLAUDE_SONNET_4 = Model("claude-sonnet-4-latest")
   GPT_5 = Model("gpt-5", 30_000) # GPT-5 has a TPM limit of 30k for me bc Tier 1
+  GPT_5_MINI = Model("gpt-5-mini", 200_000)
   O3 = Model("o3")
   
 class Prompt(TypedDict):
@@ -51,7 +52,7 @@ class _PromptHandler(ABC):
       self.max_output_tokens = 100_000 # just some insanely large number even though it'll never get this high
     
   @abstractmethod
-  def prompt_model(self, prompt: Prompt) -> None:
+  def prompt_model(self, prompt: Prompt, **config) -> None:
     pass
   
   # FIXME: maybe this belongs somewhere else
@@ -285,7 +286,7 @@ class AnthropicPromptHandler(_PromptHandler):
     super().__init__(model_type, max_response_words)
     self._client = AsyncAnthropic()
   
-  async def prompt_model(self, prompt: Prompt) -> str:
+  async def prompt_model(self, prompt: Prompt, **config) -> str:
     if self.model_type is LargeLanguageModels.CLAUDE_SONNET_4: # thinking allowed
       response = await self._client.messages.create(
         model=self.model_type.value.name,
@@ -307,6 +308,7 @@ class AnthropicPromptHandler(_PromptHandler):
             'content': prompt['user']
           }
         ],
+        **config
       )
     else: # no thinking
       response = await self._client.messages.create(
@@ -325,6 +327,7 @@ class AnthropicPromptHandler(_PromptHandler):
             'content': prompt['user']
           }
         ],
+        **config
       )
       
     if response.content[0].type != 'text':
@@ -338,7 +341,7 @@ class OpenAiPromptHandler(_PromptHandler):
     super().__init__(model_type, max_response_words)
     self._client = AsyncOpenAI()
   
-  async def prompt_model(self, prompt: Prompt) -> str:
+  async def prompt_model(self, prompt: Prompt, **config) -> str:
     if self.model_type.value.name[0].lower() == 'o': # reasoning series
       response = await self._client.responses.create(
         model=self.model_type.value.name,
@@ -348,14 +351,16 @@ class OpenAiPromptHandler(_PromptHandler):
           'effort': 'medium',
           'summary': 'concise',
         },
-        input=prompt['user']
+        input=prompt['user'],
+        **config
       )
     else:
       response = await self._client.responses.create(
         model=self.model_type.value.name,
         max_output_tokens=self.max_output_tokens,
         instructions=prompt['system'],
-        input=prompt['user']
+        input=prompt['user'],
+        **config
       )
     
     return response.output_text
