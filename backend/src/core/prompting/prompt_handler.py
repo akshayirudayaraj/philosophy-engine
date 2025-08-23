@@ -34,7 +34,7 @@ class PromptHandlerFactory:
     match model_type:
       case LargeLanguageModels.CLAUDE_HAIKU_3_5 | LargeLanguageModels.CLAUDE_SONNET_4:
         return AnthropicPromptHandler(model_type=model_type, max_response_words=max_response_words)
-      case LargeLanguageModels.GPT_5 | LargeLanguageModels.O3:
+      case LargeLanguageModels.GPT_5 | LargeLanguageModels.O3 | LargeLanguageModels.GPT_5_MINI:
         return OpenAiPromptHandler(model_type=model_type, max_response_words=max_response_words)
       case _:
         raise ModelSelectionException()
