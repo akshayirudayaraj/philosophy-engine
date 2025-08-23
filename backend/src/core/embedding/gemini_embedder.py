@@ -20,9 +20,9 @@ class GeminiEmbedder(DenseEmbedder):
     service_account_credentials_path = None
     if (os.getenv('ENVIRONMENT') == 'production'):
       service_account_credentials_path = os.getenv('GC_SERVICE_ACCOUNT_CREDENTIALS_FILEPATH')
-    
+  
     if service_account_credentials_path is not None:
-      sa_credentials = service_account.Credentials.from_service_account_file(service_account_credentials_path)
+      sa_credentials = service_account.Credentials.from_service_account_file(service_account_credentials_path).with_scopes(['https://www.googleapis.com/auth/cloud-platform'])
     else:
       sa_credentials = None
     
