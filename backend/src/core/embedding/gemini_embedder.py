@@ -17,10 +17,11 @@ class GeminiEmbedder(DenseEmbedder):
   _client: Client
     
   def __init__(self, output_dim: int, task_type: str):
+    service_account_credentials_path = None
     if (os.getenv('ENVIRONMENT') == 'production'):
       service_account_credentials_path = os.getenv('GC_SERVICE_ACCOUNT_CREDENTIALS_FILEPATH')
     
-    if service_account_credentials_path:
+    if service_account_credentials_path is not None:
       sa_credentials = service_account.Credentials.from_service_account_file(service_account_credentials_path)
     else:
       sa_credentials = None
