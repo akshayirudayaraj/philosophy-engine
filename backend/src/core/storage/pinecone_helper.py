@@ -24,7 +24,7 @@ class PineconeDB(LoggingMixin):
     )
     
     self._batch_size = batch_size
-    self.logger = self.set_up_logging(filename=os.path.join('logs', 'pinecone.log'))
+    # self.logger = self.set_up_logging(filename=os.path.join('logs', 'pinecone.log'))
   
   @classmethod
   def from_environment(cls, **kwargs):
@@ -50,7 +50,8 @@ class PineconeDB(LoggingMixin):
       try:
         future.get() # type: ignore
       except Exception:
-        self.logger.error(f"Error upserting {future.get()}") # type: ignore
+        print(f'"Error upserting {future.get()}"') # type: ignore
+        # self.logger.error(f"Error upserting {future.get()}") # type: ignore
 
   def process_and_clean_vector(self, v: dict) -> Embedding:
     '''
