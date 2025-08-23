@@ -34,14 +34,10 @@ export default function Home() {
     try {
       console.log(JSON.stringify({ "user_query": userQuery }));
 
-      let backendUrl: string
-      if (process.env.ENVIRONMENT === 'production') {
-        backendUrl = 'https://philosophy-engine.onrender.com/query'
-      } else {
-        backendUrl = 'http://127.0.0.1:8000/query'
-      }
+      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL as string
+      const postUrl = `${backendUrl}/query`
 
-      const response = await fetch(backendUrl, {
+      const response = await fetch(postUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ "user_query": userQuery })
