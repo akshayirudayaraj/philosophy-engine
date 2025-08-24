@@ -1,7 +1,7 @@
 from core.storage.pinecone_helper import PineconeDB
 from core.embedding.gemini_embedder import GeminiEmbedder
 from core.prompting.prompt_handler import PromptHandlerFactory, LargeLanguageModels
-from core.prompting.knowledge_graph import KnowledgeGraph
+from core.prompting.knowledge_graph import KnowledgeGraphBuilder
 from api.models import Document
 
 async def get_model_output_from_query(user_query: str) -> tuple[list[Document], str]:  
@@ -21,14 +21,17 @@ async def get_model_output_from_query(user_query: str) -> tuple[list[Document], 
     
   reranked_top_k_docs = prompt_handler.rerank(top_k_docs, user_query)
   
-  knowledge_graph = KnowledgeGraph(documents_to_parse=reranked_top_k_docs, llm_for_generation=LargeLanguageModels.GPT_5_MINI)
+  knowledge_graph_builder = KnowledgeGraphBuilder(user_query=user_query, documents_to_parse=reranked_top_k_docs, llm_for_generation=LargeLanguageModels.GPT_5_MINI)
+  knowledge_graph = await knowledge_graph_builder.generate_knowledge_graph()
   
-  num_sections_for_context = prompt_handler.get_sections_to_keep(reranked_top_k_docs) # TODO: factor KG word/token length into this
+  print(knowledge_graph)
+  
+  num_sections_for_context = prompt_handler.get_sections_to_keep(reranked_top_k_docs, knowledge_graph)
   print(f"number of sources: {num_sections_for_context+1}")
   
   docs_for_context = reranked_top_k_docs[:num_sections_for_context]
   
-  prompt = prompt_handler.construct_prompt(user_query, docs_for_context) # TODO: add KG to prompt
+  prompt = prompt_handler.construct_prompt(user_query, docs_for_context, knowledge_graph)
   model_output = await prompt_handler.prompt_model(prompt)
-  
+    
   return docs_for_context, model_output
