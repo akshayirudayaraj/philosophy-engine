@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from enum import Enum
-from typing import TypedDict, cast
+from typing import Literal, TypedDict, cast, Any
 
 from FlagEmbedding import FlagReranker
 import os
@@ -27,18 +27,6 @@ class Prompt(TypedDict):
   system: str
   user: str
   
-# TODO: add gemini and grok
-class PromptHandlerFactory:
-  @staticmethod
-  def create_prompt_handler(model_type: LargeLanguageModels, max_response_words: int | None = None):
-    match model_type:
-      case LargeLanguageModels.CLAUDE_HAIKU_3_5 | LargeLanguageModels.CLAUDE_SONNET_4:
-        return AnthropicPromptHandler(model_type=model_type, max_response_words=max_response_words)
-      case LargeLanguageModels.GPT_5 | LargeLanguageModels.O3 | LargeLanguageModels.GPT_5_MINI:
-        return OpenAiPromptHandler(model_type=model_type, max_response_words=max_response_words)
-      case _:
-        raise ModelSelectionException()
-  
 class _PromptHandler(ABC):
   PROMPT_TOKENS = 2_500 # FIXME: don't make hardcoded (used in determining how much context to add)
   WORDS_TO_TOKENS_APPROX = 1.3
@@ -52,7 +40,7 @@ class _PromptHandler(ABC):
       self.max_output_tokens = 100_000 # just some insanely large number even though it'll never get this high
     
   @abstractmethod
-  def prompt_model(self, prompt: Prompt, **config) -> None:
+  async def prompt_model(self, prompt: Prompt, **config) -> str:
     pass
   
   # FIXME: maybe this belongs somewhere else
@@ -115,18 +103,22 @@ class _PromptHandler(ABC):
     
     return reranked_docs
 
-  def get_sections_to_keep(self, docs: list[Document], context_window_tokens: int | None = None) -> int:
+  def get_sections_to_keep(self, docs: list[Document], kg: str, context_window_tokens: int | None = None) -> int:
     ABSOLUTE_MAX_CONTEXT_WINDOW = 50_000 # should probably not pass in more context than this - would dilute the model output
     BUFFER_TOKENS = 500
     
-    if self.model_type.value.max_input_tokens is not None:
-      context_window_tokens = self.model_type.value.max_input_tokens - self.PROMPT_TOKENS - BUFFER_TOKENS
-    elif context_window_tokens is not None:
-      context_window_tokens = context_window_tokens - self.PROMPT_TOKENS - BUFFER_TOKENS
+    encoding_algorithm = tiktoken.get_encoding("o200k_base")
+    
+    kg_tokens = len(encoding_algorithm.encode(kg))
+    
+    deduct_from_context_tokens = self.PROMPT_TOKENS + kg_tokens + BUFFER_TOKENS
+    
+    if context_window_tokens is not None: # ordering is such that i can easily restrict token input length regardless of the actual model rate limit or context window size
+      context_window_tokens = context_window_tokens - deduct_from_context_tokens
+    elif self.model_type.value.max_input_tokens is not None:
+      context_window_tokens = self.model_type.value.max_input_tokens - deduct_from_context_tokens
     else:
       context_window_tokens = ABSOLUTE_MAX_CONTEXT_WINDOW
-    
-    encoding_algorithm = tiktoken.get_encoding("o200k_base")
     
     token_counter = 0
     num_sections_for_context = 0
@@ -143,7 +135,7 @@ class _PromptHandler(ABC):
     print(f"tokenizer token count for context: {token_counter}")
     return num_sections_for_context
   
-  def construct_prompt(self, user_query: str, relevant_sections: list[Document]) -> Prompt: # results are of type ScoredPineconeRecord
+  def construct_prompt(self, user_query: str, relevant_sections: list[Document], knowledge_graph: str) -> Prompt:
     system_prompt = """
     You are an AI assistant tasked with writing a comprehensive, academic-style paper on a philosophical or ethical question. 
     You will be provided with a set of high-quality, peer-reviewed research papers to help you answer the question. 
@@ -160,13 +152,20 @@ class _PromptHandler(ABC):
         <article>
         Title: {context.title}
         Headers: {context.header_tree}
-        Text: {context.text}
         Link: {context.link}
+        Text: {context.text}
         </article>
         """
         for context in relevant_sections
       ]}
       </context>
+      
+      Then, consider the following knowledge graph constructed to help you recognize the key concepts across the documents and understand the relationships
+      between those concepts.
+      
+      <knowledge_graph>
+      {knowledge_graph}
+      </knowledge_graph>
       
       Now, consider the following philosophical question:
       
@@ -335,7 +334,7 @@ class AnthropicPromptHandler(_PromptHandler):
 
     return response.content[0].text
     
-# TODO: set up flex api (better pricing, higher latency)
+# TODO: potentially change to flex api (service_tier='flex') (better pricing, higher latency)
 class OpenAiPromptHandler(_PromptHandler):
   def __init__(self, model_type: LargeLanguageModels, max_response_words: int | None):
     super().__init__(model_type, max_response_words)
@@ -352,7 +351,7 @@ class OpenAiPromptHandler(_PromptHandler):
           'summary': 'concise',
         },
         input=prompt['user'],
-        **config
+        **config,
       )
     else:
       response = await self._client.responses.create(
@@ -360,11 +359,45 @@ class OpenAiPromptHandler(_PromptHandler):
         max_output_tokens=self.max_output_tokens,
         instructions=prompt['system'],
         input=prompt['user'],
-        **config
+        **config,
       )
     
     return response.output_text
   
+  async def prompt_model_structured(self, 
+                                    prompt: Prompt, 
+                                    output_type: type, 
+                                    reasoning_level: Literal['minimal', 'low', 'medium', 'high'],
+                                    text_verbosity: Literal['low', 'medium', 'high']):
+    response = await self._client.responses.parse(
+      model=self.model_type.value.name,
+      max_output_tokens=self.max_output_tokens,
+      instructions=prompt['system'],
+      input=prompt['user'],
+      text_format=output_type,
+      reasoning={
+        'effort': reasoning_level,
+      },
+      text={
+        'verbosity': text_verbosity,
+      }
+    )
+    
+    return response.output_parsed
+  
+# TODO: add gemini and grok
+# TODO: maybe move to another file
+class PromptHandlerFactory:
+  @staticmethod
+  def create_prompt_handler(model_type: LargeLanguageModels, max_response_words: int | None = None) -> _PromptHandler: # FIXME: max_response_words might change on a prompt to prompt basis rather than model to model
+    match model_type:
+      case LargeLanguageModels.CLAUDE_HAIKU_3_5 | LargeLanguageModels.CLAUDE_SONNET_4:
+        return AnthropicPromptHandler(model_type=model_type, max_response_words=max_response_words)
+      case LargeLanguageModels.GPT_5 | LargeLanguageModels.O3 | LargeLanguageModels.GPT_5_MINI:
+        return OpenAiPromptHandler(model_type=model_type, max_response_words=max_response_words)
+      case _:
+        raise ModelSelectionException()
+
 class OutputException(Exception):
   pass
 
