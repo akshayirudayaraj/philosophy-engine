@@ -2,7 +2,8 @@
 
 # tmp
 **/data/
-*.md
+claude_output.md
+model_output.md
 
 # will always keep these
 .env
