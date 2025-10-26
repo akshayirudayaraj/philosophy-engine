@@ -15,10 +15,12 @@
   # Require canonicalized entities, possibly with deduplication instructions.
   # Specify low verbosity and structured output.
   
+from typing import cast
+
 from pydantic import BaseModel
 
 from api.models import Document
-from core.prompting.prompt_handler import LargeLanguageModels, Prompt, PromptHandlerFactory
+from core.prompting.prompt_handler import OpenAILanguageModels, OpenAIPromptHandler, Prompt
 
 class KnowledgeGraphEntry(BaseModel):
   subject: str
@@ -27,22 +29,23 @@ class KnowledgeGraphEntry(BaseModel):
   
 class KnowledgeGraph(BaseModel):
   entries: list[KnowledgeGraphEntry]
+  
+  def __str__(self):
+    return "\n".join([f"{entry.subject}, {entry.verb}, {entry.obj}" for entry in self.entries])
 
 # TODO: make entity/relationship extraction even more robust with NER/OpenIE
 # TODO: potentially use SOTA out-of-the-box solution (Python library) kg-gen from Stanford
   # https://arxiv.org/pdf/2502.09956 
 class KnowledgeGraphBuilder:  
-  def __init__(self, user_query: str, documents_to_parse: list[Document], llm_for_generation: LargeLanguageModels, kg_size: int = 1_500):
+  def __init__(self, user_query: str, documents_to_parse: list[Document], llm_for_generation: OpenAILanguageModels, kg_size_words: int = 1_500):
     self._user_query = user_query
     self._documents = documents_to_parse
     self._llm = llm_for_generation
-    self._kg_size = kg_size
+    self._kg_size = kg_size_words
     
-    self._prompt_handler = PromptHandlerFactory.create_prompt_handler(model_type=llm_for_generation, max_response_words=kg_size)
+    self._prompt_handler = OpenAIPromptHandler(model_type=llm_for_generation, max_response_words=kg_size_words)
       # FIXME: rework prompt handler class (right now too hyperspecific to the RAG use-case e.g., the RAG prompt)
-    
-    self._kg_text = self.generate_knowledge_graph()
-    
+        
   async def generate_knowledge_graph(self) -> str:
     prompt = self._generate_kg_prompt()
     model_result = await self._prompt_handler.prompt_model_structured(
@@ -51,9 +54,16 @@ class KnowledgeGraphBuilder:
       reasoning_level='low', # maybe move to typed dicts and pass in config dict (unwrap in function)
       text_verbosity='low',
     )
+        
+    kg = cast(KnowledgeGraph, model_result)
+    str_kg = str(kg)
     
-    return model_result
-    
+    return str_kg
+  
+  # potentially split into two LLM layers:
+  # 1. source text -> structured entity extraction
+  # 2. source text, structured entities -> SVO triplets
+  # kg gen paper suggests this gives better results
   def _generate_kg_prompt(self) -> Prompt:
     system_prompt = """
     You are a linguist and philosophical analyst tasked with examining documents related to a specific philosophical question. 

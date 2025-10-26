@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 from enum import Enum
 from typing import Literal, TypedDict, cast, Any
+from itertools import chain
 
 from FlagEmbedding import FlagReranker
 import os
@@ -15,14 +16,16 @@ class Model:
   def __init__(self, name: str, max_input_tokens: int | None = None):
     self.name = name
     self.max_input_tokens = max_input_tokens
-
-class LargeLanguageModels(Enum):
+    
+class AnthropicLanguageModels(Enum):
   CLAUDE_HAIKU_3_5 = Model("claude-3-5-haiku-latest")
   CLAUDE_SONNET_4 = Model("claude-sonnet-4-latest")
+  
+class OpenAILanguageModels(Enum):
   GPT_5 = Model("gpt-5", 30_000) # GPT-5 has a TPM limit of 30k for me bc Tier 1
   GPT_5_MINI = Model("gpt-5-mini", 200_000)
   O3 = Model("o3")
-  
+
 class Prompt(TypedDict):
   system: str
   user: str
@@ -31,7 +34,7 @@ class _PromptHandler(ABC):
   PROMPT_TOKENS = 2_500 # FIXME: don't make hardcoded (used in determining how much context to add)
   WORDS_TO_TOKENS_APPROX = 1.3
 
-  def __init__(self, model_type: LargeLanguageModels, max_response_words: int | None):
+  def __init__(self, model_type: OpenAILanguageModels | AnthropicLanguageModels, max_response_words: int | None):
     self.model_type = model_type
     
     if max_response_words:
@@ -161,7 +164,7 @@ class _PromptHandler(ABC):
       </context>
       
       Then, consider the following knowledge graph constructed to help you recognize the key concepts across the documents and understand the relationships
-      between those concepts.
+      between those concepts. The knowledge graph is represented as a list of entries, where each entry follows the Subject-Verb-Object (SVO) form.
       
       <knowledge_graph>
       {knowledge_graph}
@@ -281,12 +284,12 @@ class _PromptHandler(ABC):
 class AnthropicPromptHandler(_PromptHandler):
   THINKING_TOKEN_BUDGET = 2000
   
-  def __init__(self, model_type: LargeLanguageModels, max_response_words: int | None):
+  def __init__(self, model_type: AnthropicLanguageModels, max_response_words: int | None):
     super().__init__(model_type, max_response_words)
     self._client = AsyncAnthropic()
   
   async def prompt_model(self, prompt: Prompt, **config) -> str:
-    if self.model_type is LargeLanguageModels.CLAUDE_SONNET_4: # thinking allowed
+    if self.model_type is AnthropicLanguageModels.CLAUDE_SONNET_4: # thinking allowed
       response = await self._client.messages.create(
         model=self.model_type.value.name,
         max_tokens=self.max_output_tokens,
@@ -335,8 +338,8 @@ class AnthropicPromptHandler(_PromptHandler):
     return response.content[0].text
     
 # TODO: potentially change to flex api (service_tier='flex') (better pricing, higher latency)
-class OpenAiPromptHandler(_PromptHandler):
-  def __init__(self, model_type: LargeLanguageModels, max_response_words: int | None):
+class OpenAIPromptHandler(_PromptHandler):
+  def __init__(self, model_type: OpenAILanguageModels, max_response_words: int | None):
     super().__init__(model_type, max_response_words)
     self._client = AsyncOpenAI()
   
@@ -389,12 +392,12 @@ class OpenAiPromptHandler(_PromptHandler):
 # TODO: maybe move to another file
 class PromptHandlerFactory:
   @staticmethod
-  def create_prompt_handler(model_type: LargeLanguageModels, max_response_words: int | None = None) -> _PromptHandler: # FIXME: max_response_words might change on a prompt to prompt basis rather than model to model
+  def create_prompt_handler(model_type: OpenAILanguageModels | AnthropicLanguageModels, max_response_words: int | None = None) -> _PromptHandler: # FIXME: max_response_words might change on a prompt to prompt basis rather than model to model
     match model_type:
-      case LargeLanguageModels.CLAUDE_HAIKU_3_5 | LargeLanguageModels.CLAUDE_SONNET_4:
+      case AnthropicLanguageModels.CLAUDE_HAIKU_3_5 | AnthropicLanguageModels.CLAUDE_SONNET_4:
         return AnthropicPromptHandler(model_type=model_type, max_response_words=max_response_words)
-      case LargeLanguageModels.GPT_5 | LargeLanguageModels.O3 | LargeLanguageModels.GPT_5_MINI:
-        return OpenAiPromptHandler(model_type=model_type, max_response_words=max_response_words)
+      case OpenAILanguageModels.GPT_5 | OpenAILanguageModels.O3 | OpenAILanguageModels.GPT_5_MINI:
+        return OpenAIPromptHandler(model_type=model_type, max_response_words=max_response_words)
       case _:
         raise ModelSelectionException()
 

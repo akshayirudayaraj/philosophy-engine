@@ -1,6 +1,6 @@
 from core.storage.pinecone_helper import PineconeDB
 from core.embedding.gemini_embedder import GeminiEmbedder
-from core.prompting.prompt_handler import PromptHandlerFactory, LargeLanguageModels
+from core.prompting.prompt_handler import PromptHandlerFactory, OpenAILanguageModels
 from core.prompting.knowledge_graph import KnowledgeGraphBuilder
 from api.models import Document
 
@@ -9,23 +9,25 @@ async def get_model_output_from_query(user_query: str) -> tuple[list[Document], 
   query_vector = gemini_embedder.embed(user_query)
   
   pinecone = PineconeDB.from_environment()
-  
+    
   result = pinecone.query(query_vector, num_res_to_retrieve=30, namespace='better_article_data')
   top_k_vectors = result['matches']
   print(f'usage: {result['usage']}')
   
-  prompt_handler = PromptHandlerFactory.create_prompt_handler(LargeLanguageModels.GPT_5)
+  prompt_handler = PromptHandlerFactory.create_prompt_handler(OpenAILanguageModels.GPT_5)
     
   non_unique_top_k_docs = prompt_handler.get_matched_docs_from_vector_metadata(top_k_vectors)
   top_k_docs = list(set(non_unique_top_k_docs))
     
   reranked_top_k_docs = prompt_handler.rerank(top_k_docs, user_query)
   
-  knowledge_graph_builder = KnowledgeGraphBuilder(user_query=user_query, documents_to_parse=reranked_top_k_docs, llm_for_generation=LargeLanguageModels.GPT_5_MINI)
+  knowledge_graph_builder = KnowledgeGraphBuilder(user_query=user_query, documents_to_parse=reranked_top_k_docs, 
+                                                  llm_for_generation=OpenAILanguageModels.GPT_5_MINI)
   knowledge_graph = await knowledge_graph_builder.generate_knowledge_graph()
   
   print(knowledge_graph)
   
+  # TODO: abstract out getting token length function -> doesn't make sense to pass in knowledge_graph here - we should just be passing in its token length
   num_sections_for_context = prompt_handler.get_sections_to_keep(reranked_top_k_docs, knowledge_graph)
   print(f"number of sources: {num_sections_for_context+1}")
   
