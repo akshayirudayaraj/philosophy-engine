@@ -110,8 +110,6 @@ class _PromptHandler(ABC):
     reranked_cross_encoder_scores_and_docs = sorted(cross_encoder_scores_and_docs, key=lambda rank: rank['score'])
     reranked_docs = [rank['doc'] for rank in reranked_cross_encoder_scores_and_docs]
     
-    print("done reranking")
-    
     return reranked_docs
 
   def get_sections_to_keep(self, docs: list[Document], context_window_tokens: int | None = None) -> int:
