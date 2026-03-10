@@ -34,10 +34,7 @@ export default function Home() {
     try {
       console.log(JSON.stringify({ "user_query": userQuery }));
 
-      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL as string
-      const postUrl = `${backendUrl}/query`
-
-      const response = await fetch(postUrl, {
+      const response = await fetch('/api/query', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ "user_query": userQuery })
