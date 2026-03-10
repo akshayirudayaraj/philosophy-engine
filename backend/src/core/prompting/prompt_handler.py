@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 from enum import Enum
 from typing import TypedDict, cast
 
-from FlagEmbedding import FlagReranker
+# from FlagEmbedding import FlagReranker
 import os
 from anthropic import AsyncAnthropic
 from openai import AsyncOpenAI
@@ -96,21 +96,21 @@ class _PromptHandler(ABC):
       'header_tree': article['title'],
       'text': article['metadata']['intro'],
     }
+  
+  # def rerank(self, docs: list[Document], user_query: str) -> list[Document]:
+  #   reranker = FlagReranker('BAAI/bge-reranker-v2-m3', use_fp16=True)
+  #   top_k_docs_and_query = [(user_query, doc.text) for doc in docs]
+  #   cross_encoder_scores = reranker.compute_score([*top_k_docs_and_query], normalize=True) # TODO: add async support
     
-  def rerank(self, docs: list[Document], user_query: str) -> list[Document]:
-    reranker = FlagReranker('BAAI/bge-reranker-v2-m3', use_fp16=True)
-    top_k_docs_and_query = [(user_query, doc.text) for doc in docs]
-    cross_encoder_scores = reranker.compute_score([*top_k_docs_and_query], normalize=True) # TODO: add async support
+  #   cross_encoder_scores_and_docs = [{
+  #     'score': score,
+  #     'doc': doc,
+  #   } for score, doc in zip(cast(list, cross_encoder_scores), docs)]
     
-    cross_encoder_scores_and_docs = [{
-      'score': score,
-      'doc': doc,
-    } for score, doc in zip(cast(list, cross_encoder_scores), docs)]
+  #   reranked_cross_encoder_scores_and_docs = sorted(cross_encoder_scores_and_docs, key=lambda rank: rank['score'])
+  #   reranked_docs = [rank['doc'] for rank in reranked_cross_encoder_scores_and_docs]
     
-    reranked_cross_encoder_scores_and_docs = sorted(cross_encoder_scores_and_docs, key=lambda rank: rank['score'])
-    reranked_docs = [rank['doc'] for rank in reranked_cross_encoder_scores_and_docs]
-    
-    return reranked_docs
+  #   return reranked_docs
 
   def get_sections_to_keep(self, docs: list[Document], context_window_tokens: int | None = None) -> int:
     ABSOLUTE_MAX_CONTEXT_WINDOW = 50_000 # should probably not pass in more context than this - would dilute the model output
