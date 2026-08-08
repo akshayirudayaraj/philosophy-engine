@@ -1,8 +1,7 @@
 from abc import ABC, abstractmethod
 from enum import Enum
-from typing import TypedDict, cast
+from typing import TypedDict
 
-from FlagEmbedding import FlagReranker
 import os
 from anthropic import AsyncAnthropic
 from openai import AsyncOpenAI
@@ -10,6 +9,7 @@ import tiktoken
 
 from api.models import Document
 from core.file_helper import MdHelper, JsonHelper
+from core.storage.pinecone_helper import PineconeDB
 
 class Model:
   def __init__(self, name: str, max_input_tokens: int | None = None):
@@ -98,14 +98,15 @@ class _PromptHandler(ABC):
     }
     
   def rerank(self, docs: list[Document], user_query: str) -> list[Document]:
-    reranker = FlagReranker('BAAI/bge-reranker-v2-m3', use_fp16=True)
-    top_k_docs_and_query = [(user_query, doc.text) for doc in docs]
-    cross_encoder_scores = reranker.compute_score([*top_k_docs_and_query], normalize=True) # TODO: add async support
-    
+    pinecone = PineconeDB.from_environment()
+    rerank_result = pinecone.rerank('bge-reranker-v2-m3', user_query, [doc.text for doc in docs]) # TODO: add async support
+    scores_by_index = {row['index']: row['score'] for row in rerank_result.data}
+    cross_encoder_scores = [scores_by_index[idx] for idx in range(len(docs))]
+
     cross_encoder_scores_and_docs = [{
       'score': score,
       'doc': doc,
-    } for score, doc in zip(cast(list, cross_encoder_scores), docs)]
+    } for score, doc in zip(cross_encoder_scores, docs)]
     
     reranked_cross_encoder_scores_and_docs = sorted(cross_encoder_scores_and_docs, key=lambda rank: rank['score'])
     reranked_docs = [rank['doc'] for rank in reranked_cross_encoder_scores_and_docs]

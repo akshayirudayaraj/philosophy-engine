@@ -112,7 +112,16 @@ class PineconeDB(LoggingMixin):
     
     if not isinstance(results, QueryResponse):
       raise Exception("retrieved results are not of type QueryResponse from Pinecone")
-    
+
     return results
+
+  def rerank(self, model: str, query: str, documents: list[str]):
+    return self.pc.inference.rerank(
+      model=model,
+      query=query,
+      documents=documents,
+      top_n=len(documents),
+      return_documents=False,
+    )
 
 # TODO: will shift architecture a bit to a DatabaseFactory class if I get MySQL/SQLite or Neo4j involved  
