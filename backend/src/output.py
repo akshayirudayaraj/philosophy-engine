@@ -13,7 +13,7 @@ async def get_model_output_from_query(user_query: str) -> tuple[list[Document], 
   top_k_vectors = result['matches']
   print(f'usage: {result['usage']}')
   
-  prompt_handler = PromptHandlerFactory.create_prompt_handler(LargeLanguageModels.GPT_5)
+  prompt_handler = PromptHandlerFactory.create_prompt_handler(LargeLanguageModels.GPT_5_6_LUNA)
   
   non_unique_top_k_docs = prompt_handler.get_matched_docs_from_vector_metadata(top_k_vectors)
   top_k_docs = list(set(non_unique_top_k_docs))

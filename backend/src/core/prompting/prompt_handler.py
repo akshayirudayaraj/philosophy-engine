@@ -19,7 +19,7 @@ class Model:
 class LargeLanguageModels(Enum):
   CLAUDE_HAIKU_3_5 = Model("claude-3-5-haiku-latest")
   CLAUDE_SONNET_4 = Model("claude-sonnet-4-latest")
-  GPT_5 = Model("gpt-5", 30_000) # GPT-5 has a TPM limit of 30k for me bc Tier 1
+  GPT_5_6_LUNA = Model("gpt-5.6-luna", 30_000) # 30k TPM cap for me bc Tier 1
   O3 = Model("o3")
   
 class Prompt(TypedDict):
@@ -33,7 +33,7 @@ class PromptHandlerFactory:
     match model_type:
       case LargeLanguageModels.CLAUDE_HAIKU_3_5 | LargeLanguageModels.CLAUDE_SONNET_4:
         return AnthropicPromptHandler(model_type=model_type, max_response_words=max_response_words)
-      case LargeLanguageModels.GPT_5 | LargeLanguageModels.O3:
+      case LargeLanguageModels.GPT_5_6_LUNA | LargeLanguageModels.O3:
         return OpenAiPromptHandler(model_type=model_type, max_response_words=max_response_words)
       case _:
         raise ModelSelectionException()
