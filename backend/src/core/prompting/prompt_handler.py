@@ -107,7 +107,7 @@ class _PromptHandler(ABC):
       'doc': doc,
     } for score, doc in zip(cross_encoder_scores, docs)]
     
-    reranked_cross_encoder_scores_and_docs = sorted(cross_encoder_scores_and_docs, key=lambda rank: rank['score'])
+    reranked_cross_encoder_scores_and_docs = sorted(cross_encoder_scores_and_docs, key=lambda rank: rank['score'], reverse=True)
     reranked_docs = [rank['doc'] for rank in reranked_cross_encoder_scores_and_docs]
     
     print("done reranking")
