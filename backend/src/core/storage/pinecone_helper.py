@@ -122,6 +122,7 @@ class PineconeDB(LoggingMixin):
       documents=documents,
       top_n=len(documents),
       return_documents=False,
+      parameters={'truncate': 'END'}, # truncate pairs over the model's token limit instead of erroring (local FlagReranker truncated silently)
     )
 
 # TODO: will shift architecture a bit to a DatabaseFactory class if I get MySQL/SQLite or Neo4j involved  
