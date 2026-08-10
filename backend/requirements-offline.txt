@@ -1,0 +1,23 @@
+# Extra dependencies for the one-time offline preprocessing pipeline (pipeline.sh:
+# scrape -> chunk -> embed -> upsert). NOT needed to serve queries at runtime.
+#
+# Install with:
+#   pip install -r requirements-offline.txt
+# which also pulls in the serve deps below via the `-r` include.
+#
+# Recommended on Python 3.12: sentencepiece==0.2.0 ships a prebuilt wheel there, so no
+# compiler is needed. On Python 3.13 that version has no wheel and builds from source,
+# which needs cmake (below) PLUS a C++ toolchain (apt install build-essential) and
+# protobuf headers -- easiest to just run the pipeline on 3.12.
+
+-r requirements.txt
+
+# scraping (core/scraping/scraper.py, sep/scraping.py)
+beautifulsoup4
+bs4
+lxml==6.0.0
+pylatexenc==2.10
+
+# chunking tokenizer (core/embedding/tokenizer.py, used by sep/chunking.py)
+sentencepiece==0.2.0
+cmake==3.31.6
