@@ -267,8 +267,9 @@ class _PromptHandler(ABC):
     total_prompt_tokens = len(encoding_algorithm.encode(system_prompt + user_prompt))
     print(f'total prompt tokens: {total_prompt_tokens}')
     
-    if (total_prompt_tokens > 30_000): # TODO: don't hardcode, tie to model
-      raise Exception("Too many tokens being passed to model (right now just set up for GPT-5)")
+    max_input_tokens = self.model_type.value.max_input_tokens
+    if (max_input_tokens is not None and total_prompt_tokens > max_input_tokens):
+      raise Exception(f"Too many tokens ({total_prompt_tokens}) for {self.model_type.value.name}'s {max_input_tokens} input cap")
     
     return {
       'system': system_prompt,
