@@ -19,7 +19,7 @@ class Model:
 class LargeLanguageModels(Enum):
   CLAUDE_HAIKU_3_5 = Model("claude-3-5-haiku-latest")
   CLAUDE_SONNET_4 = Model("claude-sonnet-4-latest")
-  GPT_5_6_LUNA = Model("gpt-5.6-luna", 30_000) # 30k TPM cap for me bc Tier 1
+  GPT_5_6_LUNA = Model("gpt-5.6-luna", 500_000) # 50k TPM cap (Tier 1). FIXME: update doc truncation (prior was 30k - outdated)
   O3 = Model("o3")
   
 class Prompt(TypedDict):
