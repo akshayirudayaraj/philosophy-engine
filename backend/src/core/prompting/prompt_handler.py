@@ -97,8 +97,7 @@ class _PromptHandler(ABC):
       'text': article['metadata']['intro'],
     }
     
-  def rerank(self, docs: list[Document], user_query: str) -> list[Document]:
-    pinecone = PineconeDB.from_environment()
+  def rerank(self, docs: list[Document], user_query: str, pinecone: PineconeDB) -> list[Document]:
     rerank_result = pinecone.rerank('bge-reranker-v2-m3', user_query, [doc.text for doc in docs]) # TODO: add async support
     scores_by_index = {row['index']: row['score'] for row in rerank_result.data}
     cross_encoder_scores = [scores_by_index[idx] for idx in range(len(docs))]

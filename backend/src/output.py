@@ -18,7 +18,7 @@ async def get_model_output_from_query(user_query: str) -> tuple[list[Document], 
   non_unique_top_k_docs = prompt_handler.get_matched_docs_from_vector_metadata(top_k_vectors)
   top_k_docs = list(set(non_unique_top_k_docs))
   
-  reranked_top_k_docs = prompt_handler.rerank(top_k_docs, user_query)
+  reranked_top_k_docs = prompt_handler.rerank(top_k_docs, user_query, pinecone)
   
   num_sections_for_context = prompt_handler.get_sections_to_keep(reranked_top_k_docs)
   print(f"number of sources: {num_sections_for_context+1}")
